@@ -23,10 +23,10 @@ class App(QWidget):
         self.stack = QStackedWidget()
         self.previous_widgets = []
 
+        self.webdriver = WebdriverOperations()
+
         self.init_windows()
         self.initUI()
-
-        self.webdriver = WebdriverOperations()
 
     def initUI(self):
         self.setWindowTitle("Support Master")
@@ -91,6 +91,8 @@ class App(QWidget):
         layout.addWidget(button)
 
     def switch_window(self, window, open_program=None):
+        if window not in [self.stack.widget(i) for i in range(self.stack.count())]:
+            self.stack.addWidget(window)
         self.previous_widgets.append(self.stack.currentWidget())
         self.stack.setCurrentWidget(window)
         if open_program:

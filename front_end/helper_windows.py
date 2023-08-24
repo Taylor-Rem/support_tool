@@ -48,7 +48,7 @@ class HelperWidget(QWidget):
 class LedgerOps(HelperWidget):
     def __init__(self, main_app, title):
         super().__init__(main_app, title)
-        self.ledger_master = LedgerMaster()
+        self.ledger_master = LedgerMaster(main_app.webdriver)
 
     def create_ledger_buttons(self):
         self.allocate_all_btn = self.create_button(

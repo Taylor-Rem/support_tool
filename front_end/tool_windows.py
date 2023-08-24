@@ -1,18 +1,20 @@
 from front_end.helper_windows import HelperWidget, LedgerOps
 
 from applications.ticket_master import TicketMaster
+
 from applications.report_master import ReportMaster
 
 
-class TicketWindow(HelperWidget, TicketMaster):
+class TicketWindow(HelperWidget):
     def __init__(self, main_app):
         super().__init__(main_app, "Ticket Helper")
+        self.ticket_master = TicketMaster(main_app.webdriver)
         self.icons = {
             "In Progress": "scatter_plot",
             "Resolved": "done_outline",
             "Back": "arrow_back",
         }
-        self.open_btn = self.create_button("🤖 Open Ticket", self.open_ticket)
+        self.open_btn = self.create_button("🤖 Open Ticket", self.open_tickets)
         self.in_progress_btn = self.create_button(
             "🔵 In Progress",
             lambda: (
@@ -24,12 +26,12 @@ class TicketWindow(HelperWidget, TicketMaster):
         )
         self.add_back_btn()
 
-    def open_ticket(self):
+    def open_tickets(self):
         self.main_app.switch_window(self.main_app.ticket_ops_window)
-        self.open_ticket()
+        self.ticket_master.open_ticket()
 
     def change_ticket_status(self, icon, back=None):
-        self.change_ticket_status(icon, back)
+        self.ticket_master.change_ticket_status(icon, back)
 
 
 class TicketOpsWindow(LedgerOps):
@@ -54,9 +56,8 @@ class ReportWindow(HelperWidget):
         self.add_back_btn()
 
     def open_report(self, report):
+        report_master = ReportMaster(self.main_app.webdriver, report)
         self.main_app.switch_window(self.main_app.report_ops_window)
-        report_master = ReportMaster(report)
-        print(report_master.reports_path)
 
 
 class ReportOpsWindow(LedgerOps):

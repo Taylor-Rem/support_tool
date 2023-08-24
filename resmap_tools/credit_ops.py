@@ -1,10 +1,11 @@
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import Select
 
-from general_tools.webdriver import WebdriverOperations
 
+class CreditScrape:
+    def __init__(self, webdriver):
+        self.webdriver = webdriver
 
-class CreditScrape(WebdriverOperations):
     def get_name_and_bill_amount(self):
         rows = self.driver.find_elements(By.XPATH, "//tr[contains(@class, 'td')]")
         row = rows[-1]
@@ -23,6 +24,9 @@ class CreditScrape(WebdriverOperations):
 
 
 class CreditFunctions(CreditScrape):
+    def __init__(self, webdriver):
+        super().__init__(webdriver)
+
     def fill_select(self, is_concession):
         if (self.name == "Rent" or self.name == "Home Rental") and is_concession:
             self.select.select_by_visible_text(f"{self.name} Concession")
@@ -42,8 +46,8 @@ class CreditFunctions(CreditScrape):
 
 
 class CreditMaster(CreditFunctions):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, webdriver):
+        super().__init__(webdriver)
 
     def credit_charge(self, is_concession):
         self.get_name_and_bill_amount()

@@ -1,9 +1,9 @@
 from front_end.app import App
 from PyQt5.QtWidgets import QApplication
-from general_tools.os_ops import OSMaster
+from general_tools.os_ops import OSInteract
 
 if __name__ == "__main__":
-    OSMaster().create_folders()
+    OSInteract().create_folders()
     app = QApplication([])
     main_app = None
     try:

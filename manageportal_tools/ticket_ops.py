@@ -1,13 +1,14 @@
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException
 
-from general_tools.webdriver import WebdriverOperations
 
+class ManageportalScrape:
+    def __init__(self, webdriver):
+        self.webdriver = webdriver
 
-class ManageportalScrape(WebdriverOperations):
     def scrape_ticket(self):
         try:
-            property = self.return_element_html(
+            property = self.webdriver.return_element_html(
                 By.XPATH,
                 "//tr/td[@class='text-xs-right' and contains(text(), 'Property')]/following-sibling::td[@class='text-xs-left']/strong/a",
             )
@@ -15,14 +16,14 @@ class ManageportalScrape(WebdriverOperations):
             property = None
 
         try:
-            unit = self.return_element_html(
+            unit = self.webdriver.return_element_html(
                 By.XPATH,
                 "//tr/td[@class='text-xs-right' and contains(text(), 'Space')]/following-sibling::td[@class='text-xs-left']/a/strong",
             )
         except NoSuchElementException:
             unit = None
         try:
-            resident = self.return_element_html(
+            resident = self.webdriver.return_element_html(
                 By.XPATH,
                 "//tr/td[@class='text-xs-right' and contains(text(), 'Resident')]/following-sibling::td[@class='text-xs-left']/a/strong",
             )
@@ -31,9 +32,12 @@ class ManageportalScrape(WebdriverOperations):
         return property, unit, resident
 
 
-class ManageportalOps(ManageportalScrape):
+class ManageportalMaster(ManageportalScrape):
+    def __init__(self, webdriver):
+        super().__init__(webdriver)
+
     def resolve_ticket(self, icon, back):
-        self.click(By.XPATH, "//button[contains(., 'Change Ticket Status')]")
+        self.webdriver.click(By.XPATH, "//button[contains(., 'Change Ticket Status')]")
 
         self.click_button("button", icon)
 
@@ -42,10 +46,5 @@ class ManageportalOps(ManageportalScrape):
 
     def click_button(self, element_type, icon):
         xpath = f"//{element_type}[.//i[contains(@class, 'material-icons') and text()='{icon}']]"
-        self.wait_for_element_clickable(By.XPATH, xpath)
-        self.click(By.XPATH, xpath)
-
-
-class ManageportalMaster(ManageportalOps):
-    def __init__(self):
-        super().__init__()
+        self.webdriver.wait_for_element_clickable(By.XPATH, xpath)
+        self.webdriver.click(By.XPATH, xpath)

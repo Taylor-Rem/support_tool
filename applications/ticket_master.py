@@ -3,17 +3,19 @@ from resmap_tools.nav_to_ledger import NavToLedgerMaster
 
 
 class TicketMaster(ManageportalMaster, NavToLedgerMaster):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, webdriver):
+        self.webdriver = webdriver
+        self.manageportal_master = ManageportalMaster(webdriver)
+        self.nav_to_ledger = NavToLedgerMaster(webdriver)
 
     def change_ticket_status(self, icon, back):
-        self.switch_to_primary_tab()
-        self.resolve_ticket(icon, back)
+        self.webdriver.switch_to_primary_tab()
+        self.manageportal_master.resolve_ticket(icon, back)
 
     def open_ticket(self):
-        self.switch_to_primary_tab()
+        self.webdriver.switch_to_primary_tab()
         property, unit, resident = self.scrape_ticket()
         print(property, unit, resident)
-        self.new_tab()
-        self.open_program(self.res_map_url)
-        self.open_ledger(property, unit, resident)
+        self.webdriver.new_tab()
+        self.webdriver.open_program(self.webdriver.res_map_url)
+        self.nav_to_ledger.open_ledger(property, unit, resident)

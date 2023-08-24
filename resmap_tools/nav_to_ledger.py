@@ -2,13 +2,14 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import NoSuchElementException
 
-from general_tools.webdriver import WebdriverOperations
 
+class NavToLedgerScrape:
+    def __init__(self, webdriver):
+        self.webdriver = webdriver
 
-class NavToLedgerScrape(WebdriverOperations):
     def scrape_resident(self):
         try:
-            RM_resident = self.return_element_html(
+            RM_resident = self.webdriver.return_element_html(
                 By.XPATH,
                 '//tbody/tr[2]/td[2]/a[contains(@href, "resident.php?cmd=viewresident")]',
             )
@@ -18,25 +19,28 @@ class NavToLedgerScrape(WebdriverOperations):
 
 
 class NavToLedgerOps(NavToLedgerScrape):
+    def __init__(self, webdriver):
+        super().__init__(webdriver)
+
     def open_property(self, property):
-        self.click(By.XPATH, "//a[contains(., 'CHANGE PROPERTY')]")
-        self.click(By.XPATH, f"//a[contains(., '{property}')]")
+        self.webdriver.click(By.XPATH, "//a[contains(., 'CHANGE PROPERTY')]")
+        self.webdriver.click(By.XPATH, f"//a[contains(., '{property}')]")
 
     def open_unit(self, unit):
-        self.send_keys(By.NAME, "search_input", unit + Keys.ENTER)
+        self.webdriver.send_keys(By.NAME, "search_input", unit + Keys.ENTER)
 
     def click_ledger(self, unit=None, resident=None):
         try:
-            self.click(By.XPATH, ".//a[text()='Ledger']")
+            self.webdriver.click(By.XPATH, ".//a[text()='Ledger']")
         except NoSuchElementException:
             self.open_former_ledger(unit, resident)
 
     def search_resident(self, resident, num):
-        self.click(
+        self.webdriver.click(
             By.ID,
             f"former{num}",
         )
-        self.send_keys(By.NAME, "ressearch", resident + Keys.ENTER)
+        self.webdriver.send_keys(By.NAME, "ressearch", resident + Keys.ENTER)
 
     def open_unit_and_ledger(self, unit, resident):
         self.open_unit(unit)
@@ -58,8 +62,8 @@ class NavToLedgerOps(NavToLedgerScrape):
 
     def open_former_ledger(self, unit, resident):
         try:
-            self.click(By.XPATH, f".//a[text()='{unit}']")
-            self.click(
+            self.webdriver.click(By.XPATH, f".//a[text()='{unit}']")
+            self.webdriver.click(
                 By.XPATH,
                 "/html/body/table[2]/tbody/tr[4]/td/table/tbody/tr/td/table[3]/tbody/tr[2]/td/table/tbody/tr[2]/td[5]/a",
             )
@@ -74,14 +78,14 @@ class NavToLedgerOps(NavToLedgerScrape):
         )
         ledger_links = table.find_elements(By.XPATH, ".//a[text()='Ledger']")
         if ledger_links:
-            self.click_element(ledger_links[-1])
+            self.webdriver.click_element(ledger_links[-1])
         else:
             self.click_ledger()
 
 
 class NavToLedgerMaster(NavToLedgerOps):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, webdriver):
+        super().__init__(webdriver)
 
     def open_ledger(self, property, unit, resident):
         self.open_property(property)

@@ -16,11 +16,11 @@ from config import username, password
 
 
 class WebDriverBase:
-    _instance = None  # Step 1
+    _instance = None
 
     def __init__(self):
         if not WebDriverBase._instance:
-            WebDriverBase._instance = self.setup_webdriver()  # Step 3
+            WebDriverBase._instance = self.setup_webdriver()
 
         self.driver = WebDriverBase._instance
         self.wait = WebDriverWait(self.driver, 10)
@@ -35,9 +35,7 @@ class WebDriverBase:
         if self.driver:
             self.driver.quit()
             self.driver = None
-            WebDriverBase._instance = (
-                None  # Clear the instance after closing the driver
-            )
+            WebDriverBase._instance = None
 
 
 class WebElementOperations(WebDriverBase):
