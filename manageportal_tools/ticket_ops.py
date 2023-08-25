@@ -37,14 +37,21 @@ class ManageportalMaster(ManageportalScrape):
         super().__init__(webdriver)
 
     def resolve_ticket(self, icon, back):
-        self.webdriver.click(By.XPATH, "//button[contains(., 'Change Ticket Status')]")
+        resolve_ticket_btn = self.webdriver.wait_for_presence_of_element(
+            By.XPATH,
+            "//button[contains(., 'Change Ticket Status')]",
+        )
+        self.webdriver.click_element(resolve_ticket_btn)
 
-        self.click_button("button", icon)
+        resolution_btn = self.webdriver.wait_for_element_clickable(
+            By.XPATH,
+            f"//button[.//i[contains(@class, 'material-icons') and text()='{icon}']]",
+        )
+        self.webdriver.click_element(resolution_btn)
 
         if back:
-            self.click_button("a", back)
-
-    def click_button(self, element_type, icon):
-        xpath = f"//{element_type}[.//i[contains(@class, 'material-icons') and text()='{icon}']]"
-        self.webdriver.wait_for_element_clickable(By.XPATH, xpath)
-        self.webdriver.click(By.XPATH, xpath)
+            back_btn = self.webdriver.wait_for_element_clickable(
+                By.XPATH,
+                f"//a[.//i[contains(@class, 'material-icons') and text()='{back}']]",
+            )
+            self.webdriver.click_element(back_btn)

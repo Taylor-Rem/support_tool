@@ -67,9 +67,12 @@ class LedgerFunctions(LedgerScrape):
         self.transaction_ops.delete_charge()
 
     def allocate_all_credits(self, amount, element):
-        if amount.startswith("(") or amount.endswith(")"):
-            self.webdriver.click_element(element)
-            self.transaction_ops.auto_allocate()
+        if amount.startswith("(") and amount.endswith(")"):
+            try:
+                self.webdriver.click_element(element)
+                self.transaction_ops.auto_allocate()
+            except:
+                pass
 
     def credit_all_charges(self, is_concession):
         self.webdriver.click_element(self.webdriver.return_last_element("Add Credit"))

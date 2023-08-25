@@ -104,11 +104,11 @@ class WebElementOperations(WebDriverBase):
 
 
 class WebUtilityOperations(WebDriverBase):
-    def wait_for_page_load(self):
-        self.wait.until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+    def wait_for_presence_of_element(self, by, value):
+        return self.wait.until(EC.presence_of_element_located((by, value)))
 
     def wait_for_element_clickable(self, by, value):
-        self.wait.until(EC.element_to_be_clickable((by, value)))
+        return self.wait.until(EC.element_to_be_clickable((by, value)))
 
     def extract_float_from_string(self, text):
         match = re.search(r"\$\s*([\d\.]+)", text)

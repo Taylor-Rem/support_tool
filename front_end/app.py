@@ -5,9 +5,9 @@ from PyQt5.QtWidgets import (
     QStackedWidget,
 )
 from general_tools.webdriver import WebdriverOperations
-from general_tools.os_ops import OSInteract
 
 from front_end.tool_windows import (
+    LedgerTools,
     TicketWindow,
     TicketOpsWindow,
     ReportWindow,
@@ -36,6 +36,7 @@ class App(QWidget):
 
     def init_windows(self):
         self.init_main_window()
+        self.ledger_tools = LedgerTools(self)
         self.ticket_window = TicketWindow(self)
         self.ticket_ops_window = TicketOpsWindow(self)
         self.report_window = ReportWindow(self)
@@ -46,6 +47,7 @@ class App(QWidget):
     def add_widgets(self):
         windows = [
             self.main_window,
+            self.ledger_tools,
             self.ticket_window,
             self.ticket_ops_window,
             self.report_window,
@@ -62,6 +64,12 @@ class App(QWidget):
         self.main_window.setLayout(main_layout)
 
         button_configs = [
+            {
+                "name": "Ledger Tools",
+                "method": lambda: self.switch_window(
+                    self.ledger_tools, self.webdriver.res_map_url
+                ),
+            },
             {
                 "name": "Ticket Helper",
                 "method": lambda: self.switch_window(

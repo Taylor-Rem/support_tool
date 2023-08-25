@@ -50,7 +50,7 @@ class TransactionFunctions(TransactionScrape):
             self.webdriver.click(By.NAME, "realloc_trid")
             self.webdriver.click(By.NAME, "update")
         except NoSuchElementException:
-            pass
+            self.webdriver.driver.back()
 
     def allocate_cents(self, amount):
         self.scrape_page()

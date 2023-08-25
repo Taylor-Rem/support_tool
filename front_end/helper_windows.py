@@ -44,6 +44,24 @@ class HelperWidget(QWidget):
     def add_back_btn(self):
         self.back_btn = self.create_button("⬅️ Back", self.go_back)
 
+    def get_confirmation(self, message="Are You Sure?", title="Confirm Operation"):
+        confirm_dialog = QMessageBox()
+        confirm_dialog.setWindowTitle(title)
+        confirm_dialog.setText(message)
+        confirm_dialog.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        confirm_dialog.setDefaultButton(QMessageBox.No)
+
+        response = confirm_dialog.exec_()
+        return response == QMessageBox.Yes
+
+    def choose_between_values(
+        self, title, label, items=[], current_index=0, editable=False
+    ):
+        item, ok = QInputDialog.getItem(
+            self, title, label, items, current_index, editable
+        )
+        return item if ok else None
+
 
 class LedgerOps(HelperWidget):
     def __init__(self, main_app, title):
@@ -65,32 +83,18 @@ class LedgerOps(HelperWidget):
         )
 
     def click_button(self, operation):
-        confirmation_message = (
-            f"Are you sure you want to perform the operation: {operation}?"
-        )
-
-        confirm_dialog = QMessageBox()
-        confirm_dialog.setWindowTitle("Confirm Operation")
-        confirm_dialog.setText(confirmation_message)
-        confirm_dialog.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-        confirm_dialog.setDefaultButton(QMessageBox.No)
-
-        response = confirm_dialog.exec_()
-
-        if response == QMessageBox.Yes:
-            if operation == "credit_all_charges":
-                items = ["Concession", "Credit"]
-                item, ok = QInputDialog.getItem(
-                    self, "Choose credit type", "Type:", items, 0, False
-                )
-                if ok and item:
-                    is_concession = item == "Concession"
-                    self.ledger_master.loop_through_table(operation, is_concession)
-                else:
-                    QMessageBox.information(
-                        self, "Operation canceled", "Credit operation was canceled."
-                    )
+        if operation == "credit_all_charges":
+            chosen_item = self.choose_between_values(
+                "Choose Credit Type", "Type", ["Concession", "Credit"]
+            )
+            if chosen_item:
+                is_concession = chosen_item == "Concession"
+                self.ledger_master.loop_through_table(operation, is_concession)
             else:
-                self.ledger_master.loop_through_table(operation)
+                QMessageBox.information(
+                    self, "Operation canceled", "Credit operation was canceled."
+                )
+        elif self.get_confirmation():
+            self.ledger_master.loop_through_table(operation)
         else:
             print("Operation canceled.")

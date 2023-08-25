@@ -72,7 +72,7 @@ class NavToLedgerOps(NavToLedgerScrape):
             self.search_resident_and_open_ledger(resident)
 
     def click_last_ledger(self):
-        table = self.driver.find_element(
+        table = self.webdriver.find_element(
             By.XPATH,
             "/html/body/table[2]/tbody/tr[4]/td/table/tbody/tr/td/table[2]/tbody/tr[2]/td/table/tbody",
         )
