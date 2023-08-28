@@ -17,6 +17,15 @@ class NavToLedgerScrape:
         except:
             return None
 
+    def scrape_unit(self, unit):
+        try:
+            RM_unit = self.webdriver.driver.find_element(
+                By.XPATH, f".//a[contains(text(), '{unit}')]"
+            )
+            return RM_unit
+        except:
+            return None
+
 
 class NavToLedgerOps(NavToLedgerScrape):
     def __init__(self, webdriver):
@@ -47,22 +56,26 @@ class NavToLedgerOps(NavToLedgerScrape):
         if self.compare_resident(resident) or resident is None:
             self.click_ledger(unit, resident)
         else:
-            self.open_former_ledger(unit, resident)
+            RM_unit = self.scrape_unit(unit)
+            if RM_unit:
+                self.open_former_ledger(RM_unit, resident)
+            else:
+                self.search_resident_and_open_ledger(resident)
 
     def search_resident_and_open_ledger(self, resident):
         try:
             self.search_resident(resident, 1)
-            self.click_ledger()
+            self.webdriver.click(By.XPATH, ".//a[text()='Ledger']")
         except NoSuchElementException:
             self.search_resident(resident, 2)
-            self.click_ledger()
+            self.webdriver.click(By.XPATH, ".//a[text()='Ledger']")
         except:
             print(f"there was a problem with ledger {resident}")
             pass
 
     def open_former_ledger(self, unit, resident):
         try:
-            self.webdriver.click(By.XPATH, f".//a[text()='{unit}']")
+            self.webdriver.click_element(unit)
             self.webdriver.click(
                 By.XPATH,
                 "/html/body/table[2]/tbody/tr[4]/td/table/tbody/tr/td/table[3]/tbody/tr[2]/td/table/tbody/tr[2]/td[5]/a",

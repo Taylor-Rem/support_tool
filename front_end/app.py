@@ -66,26 +66,24 @@ class App(QWidget):
         button_configs = [
             {
                 "name": "Ledger Tools",
-                "method": lambda: self.switch_window(
-                    self.ledger_tools, self.webdriver.res_map_url
-                ),
+                "method": lambda: self.switch_window(self.ledger_tools, True),
             },
             {
                 "name": "Ticket Helper",
                 "method": lambda: self.switch_window(
-                    self.ticket_window, self.webdriver.manage_portal_url
+                    self.ticket_window, True, self.webdriver.manage_portal_url
                 ),
             },
             {
                 "name": "Report Helper",
                 "method": lambda: self.switch_window(
-                    self.report_window, self.webdriver.res_map_url
+                    self.report_window, True, self.webdriver.res_map_url
                 ),
             },
             {
                 "name": "Redstar Helper",
                 "method": lambda: self.switch_window(
-                    self.redstar_window, self.webdriver.res_map_url
+                    self.redstar_window, True, self.webdriver.res_map_url
                 ),
             },
         ]
@@ -98,10 +96,11 @@ class App(QWidget):
         button.clicked.connect(callback)
         layout.addWidget(button)
 
-    def switch_window(self, window, open_program=None):
+    def switch_window(self, window, previous_widget=True, open_program=None):
         if window not in [self.stack.widget(i) for i in range(self.stack.count())]:
             self.stack.addWidget(window)
-        self.previous_widgets.append(self.stack.currentWidget())
+        if previous_widget:
+            self.previous_widgets.append(self.stack.currentWidget())
         self.stack.setCurrentWidget(window)
         if open_program:
             self.webdriver.switch_to_primary_tab()

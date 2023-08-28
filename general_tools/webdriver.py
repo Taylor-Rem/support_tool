@@ -69,6 +69,8 @@ class WebElementOperations(WebDriverBase):
         element = self.find_element(by, value)
         if element:
             self.click_element(element)
+        else:
+            raise NoSuchElementException
 
     def click_element(self, element):
         try:
@@ -101,6 +103,22 @@ class WebElementOperations(WebDriverBase):
 
     def element_exists(self, by, value):
         return bool(self.find_element(by, value))
+
+    def get_number_from_inner_html(self, HTML):
+        # Check for values in the format: ($ 13.81)
+        match = re.search(r"\(\$ ([\d,]+\.?\d*)\)", HTML)
+
+        # If not found, check for values in the format: $ 803.88
+        if not match:
+            match = re.search(r"\$ ([\d,]+\.?\d*)", HTML)
+
+        if match:
+            value_str = match.group(1)
+            value_str_cleaned = value_str.replace(",", "")
+            return float(value_str_cleaned)
+        else:
+            print("Value not found")
+            return None
 
 
 class WebUtilityOperations(WebDriverBase):

@@ -11,14 +11,16 @@ class RedstarBase(ReportsBase):
 
 
 class RedstarFunctions(RedstarBase, LedgerMaster):
-    def __init__(self, webdriver):
+    def __init__(self, webdriver, thread_helper):
         RedstarBase.__init__(self)
-        LedgerMaster.__init__(self, webdriver)
+        LedgerMaster.__init__(self, webdriver, thread_helper)
         self.current_index = 0
         self.open_redstar_ledger()
 
-    def cycle_ledger(self, next):
-        self.current_index = self.current_index + 1 if next else self.current_index - 1
+    def cycle_ledger(self, operation):
+        self.current_index = (
+            self.current_index + 1 if operation == "next" else self.current_index - 1
+        )
         self.open_redstar_ledger()
 
     def open_redstar_ledger(self):
@@ -27,15 +29,22 @@ class RedstarFunctions(RedstarBase, LedgerMaster):
 
 
 class RedstarMaster(RedstarFunctions):
-    def __init__(self, webdriver):
-        super().__init__(webdriver)
-        self.running = True
+    def __init__(self, webdriver, thread_helper=None):
+        super().__init__(webdriver, thread_helper)
 
     def run_autostar(self):
         for URL in self.URLs:
-            if not self.running:
+            if self.is_cancelled():
+                print("operation_cancelled")
                 break
             self.webdriver.driver.get(URL)
             if not self.webdriver.element_exists(By.XPATH, '//td//font[@color="red"]'):
                 continue
+
+            self.loop_through_table("transaction_is_prepaid")
+
             self.loop_through_table("allocate_all")
+
+    def is_cancelled(self):
+        if self.thread_helper:
+            return self.thread_helper.is_cancelled()

@@ -1,4 +1,4 @@
-from front_end.helper_windows import HelperWidget, LedgerOps
+from front_end.helper_windows import HelperWidget, LedgerOps, ThreadHelper
 
 from applications.ticket_master import TicketMaster
 from applications.report_master import ReportMaster
@@ -8,7 +8,6 @@ from applications.redstar_master import RedstarMaster
 class LedgerTools(LedgerOps):
     def __init__(self, main_app):
         super().__init__(main_app, "Redstar Helper")
-        self.create_ledger_buttons()
         self.add_back_btn()
 
 
@@ -44,7 +43,6 @@ class TicketWindow(HelperWidget):
 class TicketOpsWindow(LedgerOps):
     def __init__(self, main_app):
         super().__init__(main_app, "Ticket Helper")
-        self.create_ledger_buttons()
         self.add_back_btn()
 
 
@@ -70,7 +68,8 @@ class ReportWindow(HelperWidget):
 
 class ReportOpsWindow(LedgerOps):
     def __init__(self, main_app, report=None):
-        super().__init__(main_app, "Report Helper")
+        title = report.replace("_", " ") if report else ""
+        super().__init__(main_app, title)
         if report is not None:
             self.report_master = ReportMaster(main_app.webdriver, report)
             self.complete_btn = self.create_button(
@@ -79,7 +78,6 @@ class ReportOpsWindow(LedgerOps):
             self.skip_btn = self.create_button(
                 "⛔️ Skip", self.report_master.ledger_cycle
             )
-            self.create_ledger_buttons()
             self.add_back_btn()
 
 
@@ -87,28 +85,43 @@ class RedstarWindow(HelperWidget):
     def __init__(self, main_app):
         super().__init__(main_app, "Redstar Helper")
         self.redstar_master = RedstarMaster(main_app.webdriver)
+        self.thread_helper = ThreadHelper(
+            self.redstar_master.run_autostar, self.main_app, self
+        )
+        self.redstar_master.thread_helper = self.thread_helper
         self.open_report_btn = self.create_button(
             "Redstar Helper", self.open_redstar_window
         )
         self.run_autostar_btn = self.create_button("Run AutoStar", self.run_autostar)
-        self.stop_autostar_btn = self.create_button("Stop AutoStar", self.stop_autostar)
 
         self.add_back_btn()
 
     def open_redstar_window(self):
-        self.main_app.switch_window(self.main_app.redstar_ops_window)
+        redstar_ops_window = RedstarOpsWindow(self.main_app, self.redstar_master)
+        self.main_app.switch_window(redstar_ops_window)
         self.redstar_master.open_redstar_ledger()
 
     def run_autostar(self):
-        self.redstar_master.running = True
-        self.redstar_master.run_autostar()
+        self.thread_helper.reset()
+        self.thread_helper.start()
 
     def stop_autostar(self):
-        self.redstar_master.running = False
+        if hasattr(self, "thread_helper"):
+            self.thread_helper.cancel()
 
 
 class RedstarOpsWindow(LedgerOps):
-    def __init__(self, main_app):
+    def __init__(self, main_app, redstar_master=None):
+        if redstar_master:
+            self.redstar_master = redstar_master
         super().__init__(main_app, "Redstar Helper")
-        self.create_ledger_buttons()
+        self.next_ledger_btn = self.create_button(
+            "Next", lambda: self.cycle_ledger("next")
+        )
+        self.prev_ledger_btn = self.create_button(
+            "Prev", lambda: self.cycle_ledger("Prev")
+        )
         self.add_back_btn()
+
+    def cycle_ledger(self, operation):
+        self.redstar_master.cycle_ledger(operation)

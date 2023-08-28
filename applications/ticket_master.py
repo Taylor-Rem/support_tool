@@ -2,7 +2,7 @@ from manageportal_tools.ticket_ops import ManageportalMaster
 from resmap_tools.nav_to_ledger import NavToLedgerMaster
 
 
-class TicketMaster(ManageportalMaster, NavToLedgerMaster):
+class TicketMaster:
     def __init__(self, webdriver):
         self.webdriver = webdriver
         self.manageportal_master = ManageportalMaster(webdriver)
@@ -14,7 +14,7 @@ class TicketMaster(ManageportalMaster, NavToLedgerMaster):
 
     def open_ticket(self):
         self.webdriver.switch_to_primary_tab()
-        property, unit, resident = self.scrape_ticket()
+        property, unit, resident = self.manageportal_master.scrape_ticket()
         print(property, unit, resident)
         self.webdriver.new_tab()
         self.webdriver.open_program(self.webdriver.res_map_url)

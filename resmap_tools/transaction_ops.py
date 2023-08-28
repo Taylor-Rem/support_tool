@@ -52,6 +52,13 @@ class TransactionFunctions(TransactionScrape):
         except NoSuchElementException:
             self.webdriver.driver.back()
 
+    def delete_allocation(self):
+        amount_inputs = self.webdriver.find_elements(
+            By.XPATH, "//input[@type='text' and @name='amount']"
+        )
+        amount_input = amount_inputs[-2]
+        self.webdriver.send_keys_to_element(amount_input, 0, True)
+
     def allocate_cents(self, amount):
         self.scrape_page()
         try:
