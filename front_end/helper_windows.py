@@ -139,6 +139,7 @@ class LedgerOps(HelperWidget):
 
     def create_ledger_buttons(self):
         BUTTONS_MAP = {
+            "Unallocate All": "unallocate_all",
             "Allocate All": "allocate_all",
             "Delete All Charges": "delete_all_charges",
             "Delete All Late Fees": "delete_all_late_fees",

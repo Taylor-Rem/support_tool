@@ -7,7 +7,10 @@ from resmap_tools.ledger_ops import LedgerMaster
 class RedstarBase(ReportsBase):
     def __init__(self):
         super().__init__("redstar_report")
-        self.URLs = self.csv_ops.get_url_columns()
+        try:
+            self.URLs = self.csv_ops.get_url_columns()
+        except:
+            self.URLs = None
 
 
 class RedstarFunctions(RedstarBase, LedgerMaster):
@@ -24,8 +27,11 @@ class RedstarFunctions(RedstarBase, LedgerMaster):
         self.open_redstar_ledger()
 
     def open_redstar_ledger(self):
-        URL = self.URLs[self.current_index]
-        self.webdriver.driver.get(URL)
+        if self.URLs:
+            URL = self.URLs[self.current_index]
+            self.webdriver.driver.get(URL)
+        else:
+            pass
 
 
 class RedstarMaster(RedstarFunctions):
@@ -41,8 +47,8 @@ class RedstarMaster(RedstarFunctions):
             if not self.webdriver.element_exists(By.XPATH, '//td//font[@color="red"]'):
                 continue
 
-            self.loop_through_table("transaction_is_prepaid")
-
+            # self.loop_through_table("transaction_is_prepaid")
+            self.loop_through_table("unallocate_all")
             self.loop_through_table("allocate_all")
 
     def is_cancelled(self):

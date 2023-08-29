@@ -13,6 +13,7 @@ from selenium.common.exceptions import (
 from selenium.webdriver.common.action_chains import ActionChains
 import re
 from config import username, password
+from bs4 import BeautifulSoup
 
 
 class WebDriverBase:
@@ -174,7 +175,27 @@ class WebUtilityOperations(WebDriverBase):
         self.login(username, password)
 
 
-class WebdriverOperations(WebElementOperations, WebUtilityOperations):
+class WebdriverResmapOperations(WebDriverBase):
+    def is_header_row(self, row, class_name):
+        return row.find("td", class_=class_name) is not None
+
+    def define_table(self, by, value):
+        table_elements = self.driver.find_elements(by, value)
+        table = [element.get_attribute("outerHTML") for element in table_elements]
+        return table
+
+    def get_rows(self, table):
+        all_rows = []  # Initialize an empty list to collect all rows
+        for table_html in table:
+            soup = BeautifulSoup(table_html, "html.parser")
+            rows = soup.find_all("tr")
+            all_rows.extend(rows)  # Add rows to the list
+        return all_rows  # Return the list of all rows
+
+
+class WebdriverOperations(
+    WebElementOperations, WebUtilityOperations, WebdriverResmapOperations
+):
     def __init__(self):
         super(WebdriverOperations, self).__init__()
         self.res_map_url = "https://kingsley.residentmap.com/index.php"

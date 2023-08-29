@@ -7,7 +7,10 @@ class FilterLedgers(ReportsBase):
         super().__init__(report)
 
     def current_report_items(self):
-        properties, units, residents = self.retrieve_report_info()
+        try:
+            properties, units, residents = self.retrieve_report_info()
+        except:
+            return
         current_report_items = []
         for i in range(len(properties)):
             property = properties[i]

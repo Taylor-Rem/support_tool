@@ -52,30 +52,6 @@ class TransactionFunctions(TransactionScrape):
         except NoSuchElementException:
             self.webdriver.driver.back()
 
-    def delete_allocation(self):
-        amount_inputs = self.webdriver.find_elements(
-            By.XPATH, "//input[@type='text' and @name='amount']"
-        )
-        amount_input = amount_inputs[-2]
-        self.webdriver.send_keys_to_element(amount_input, 0, True)
-
-    def allocate_cents(self, amount):
-        self.scrape_page()
-        try:
-            if self.charge_equals_top_value():
-                self.subtract_current_allocation(
-                    amount,
-                )
-                self.webdriver.send_keys_element(
-                    self.additional_rent_element, amount, True
-                )
-            if self.top_allocation_value == 0:
-                self.webdriver.send_keys_element(
-                    self.top_allocation_element, amount, True
-                )
-        except:
-            pass
-
     def charge_equals_top_value(self):
         if self.full_charge == self.top_allocation_value:
             return True
@@ -108,3 +84,22 @@ class TransactionFunctions(TransactionScrape):
 class TransactionMaster(TransactionFunctions):
     def __init__(self, webdriver):
         super().__init__(webdriver)
+
+    def loop_through_table(self, operation):
+        table = self.webdriver.define_table(
+            By.XPATH,
+            "/html/body/table[2]/tbody/tr[4]/td/table/tbody/tr/td/table[2]/tbody/tr[2]/td/table/tbody",
+        )
+        rows = self.webdriver.get_rows(table)
+        input_elements = self.webdriver.find_elements(
+            By.XPATH, "//form[@name='EditAllocs']//input[@type='text']"
+        )
+
+        for index, (row, input_element) in enumerate(
+            zip(reversed(rows), input_elements)
+        ):
+            if self.webdriver.is_header_row(row, "th3"):
+                continue
+            send_keys = True if (index == len(rows) - 1) else False
+            if operation == "unallocate_transaction":
+                self.webdriver.send_keys_to_element(input_element, "0", send_keys)

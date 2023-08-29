@@ -1,7 +1,5 @@
 from selenium.webdriver.common.by import By
 
-from bs4 import BeautifulSoup
-
 import re
 
 from resmap_tools.credit_ops import CreditMaster
@@ -26,7 +24,6 @@ class LedgerScrape:
         ).get_attribute("innerHTML")
         has_parenthesis = bool(re.match(r"^\(\$ [\d,]+\.?\d*\)", HTML))
         prepaid_value = self.webdriver.get_number_from_inner_html(HTML)
-        print(has_parenthesis, prepaid_value)
         return prepaid_value, has_parenthesis
 
     def scrape_unit(self):
@@ -38,24 +35,6 @@ class LedgerScrape:
     def choose_table(self, num):
         return f"/html/body/table[2]/tbody/tr[4]/td/table/tbody/tr/td/table[last(){num}]/tbody/tr[2]/td/table/tbody"
 
-    def define_table(self, by, value):
-        table_elements = self.webdriver.driver.find_elements(by, value)
-        table = [element.get_attribute("outerHTML") for element in table_elements]
-        return table
-
-    def get_rows(self, table):
-        all_rows = []  # Initialize an empty list to collect all rows
-        for table_html in table:
-            soup = BeautifulSoup(table_html, "html.parser")
-            rows = soup.find_all(
-                "tr", class_=lambda value: value and value.startswith("td")
-            )
-            all_rows.extend(rows)  # Add rows to the list
-        return all_rows  # Return the list of all rows
-
-    def is_header_row(self, row, class_name):
-        return row.find("td", class_=class_name) is not None
-
     def retrieve_amount_from_bottom(self, row):
         try:
             cells = row.find_all("td")
@@ -63,6 +42,9 @@ class LedgerScrape:
             return self.get_number_from_string(amount)
         except:
             return None
+
+    def amount_is_credit(self, amount):
+        return True if amount.startswith("(") and amount.endswith(")") else False
 
 
 class LedgerFunctions(LedgerScrape):
@@ -72,25 +54,13 @@ class LedgerFunctions(LedgerScrape):
         self.credit_ops = CreditMaster(self.webdriver)
         self.nav_to_ledger = NavToLedgerMaster(self.webdriver)
 
-    def delete_charges(self, transaction):
-        self.webdriver.click_element(self.webdriver.return_last_element(transaction))
-        self.transaction_ops.delete_charge()
-
-    def allocate_all_credits(self, amount, element):
-        if amount.startswith("(") and amount.endswith(")"):
-            try:
-                self.webdriver.click_element(element)
-                self.transaction_ops.auto_allocate()
-            except:
-                pass
-
     def credit_all_charges(self, is_concession):
         self.webdriver.click_element(self.webdriver.return_last_element("Add Credit"))
         self.credit_ops.credit_charge(is_concession)
 
     def retrieve_rows(self, table_num=-4):
-        table = self.define_table(By.XPATH, self.choose_table(table_num))
-        return self.get_rows(table)
+        table = self.webdriver.define_table(By.XPATH, self.choose_table(table_num))
+        return self.webdriver.get_rows(table)
 
     def change_ledger(self, chosen_item):
         unit = self.scrape_unit()
@@ -100,10 +70,6 @@ class LedgerFunctions(LedgerScrape):
         else:
             self.nav_to_ledger.open_former_ledger(unit, None)
 
-    def prepaid_is_amount(self, transaction):
-        self.webdriver.click_element(self.webdriver.return_last_element(transaction))
-        self.transaction_ops.delete_allocation()
-
 
 class LedgerMaster(LedgerFunctions):
     def __init__(self, webdriver, thread_helper=None):
@@ -111,40 +77,40 @@ class LedgerMaster(LedgerFunctions):
         self.thread_helper = thread_helper
 
     def loop_through_table(self, operation, chosen_item=None):
+        # prepaid, has_parenthesis = self.scrape_prepaid()
         rows = self.retrieve_rows()
         for row in rows:
             if self.is_cancelled():
                 print("Loop operation cancelled")
                 break
-            if self.is_header_row(row, "th3"):
+            if self.webdriver.is_header_row(row, "th3"):
                 continue
             (
                 transaction,
                 amount,
             ) = self.retrieve_transaction_and_amount(row)
+            transaction_element = self.webdriver.return_last_element(transaction)
+
+            if operation == "unallocate_all":
+                if not self.amount_is_credit(amount):
+                    self.webdriver.click_element(transaction_element)
+                    self.transaction_ops.loop_through_table("unallocate_transaction")
+
             if operation == "allocate_all":
-                self.allocate_all_credits(
-                    amount, self.webdriver.return_last_element(transaction)
-                )
+                if self.amount_is_credit(amount):
+                    self.webdriver.click_element(transaction_element)
+                    self.transaction_ops.auto_allocate()
 
             if operation == "credit_all_charges":
-                try:
-                    self.credit_all_charges(chosen_item)
-                except:
-                    pass
+                self.credit_all_charges(chosen_item)
 
             if operation == "delete_all_charges":
-                self.delete_charges(transaction)
+                self.webdriver.click_element(transaction_element)
+                self.transaction_ops.delete_charge()
 
             if operation == "delete_all_late_fees":
                 if "Late" in transaction or transaction in "Late":
                     self.delete_charges("Late")
-
-            if operation == "transaction_is_prepaid":
-                prepaid, has_parenthesis = self.scrape_prepaid()
-                amount_num = self.webdriver.get_number_from_inner_html(amount)
-                if (prepaid == amount_num) and has_parenthesis:
-                    self.prepaid_is_amount(transaction)
 
     def is_cancelled(self):
         if self.thread_helper:
