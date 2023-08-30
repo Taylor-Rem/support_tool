@@ -1,5 +1,6 @@
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException
+from selenium.webdriver.common.keys import Keys
 
 
 class TransactionScrape:
@@ -76,9 +77,12 @@ class TransactionFunctions(TransactionScrape):
         )
 
     def delete_charge(self):
-        self.webdriver.click(By.NAME, "delete")
-        alert = self.webdriver.driver.switch_to.alert
-        alert.accept()
+        try:
+            self.webdriver.click(By.NAME, "delete")
+            alert = self.webdriver.driver.switch_to.alert
+            alert.accept()
+        except:
+            self.webdriver.driver.back()
 
 
 class TransactionMaster(TransactionFunctions):
@@ -91,15 +95,35 @@ class TransactionMaster(TransactionFunctions):
             "/html/body/table[2]/tbody/tr[4]/td/table/tbody/tr/td/table[2]/tbody/tr[2]/td/table/tbody",
         )
         rows = self.webdriver.get_rows(table)
-        input_elements = self.webdriver.find_elements(
-            By.XPATH, "//form[@name='EditAllocs']//input[@type='text']"
-        )
+        pass
 
-        for index, (row, input_element) in enumerate(
-            zip(reversed(rows), input_elements)
-        ):
-            if self.webdriver.is_header_row(row, "th3"):
-                continue
-            send_keys = True if (index == len(rows) - 1) else False
-            if operation == "unallocate_transaction":
-                self.webdriver.send_keys_to_element(input_element, "0", send_keys)
+    def unallocate_all(self, transaction_type, URL):
+        current_index = 0
+        while True:
+            if transaction_type == "charge":
+                input_elements = self.webdriver.find_elements(
+                    By.XPATH, "//form[@name='EditAllocs']//input[@type='text']"
+                )
+                input_element = input_elements[0]
+                value = input_element.get_attribute("value")
+                if value == "0":
+                    break
+                self.webdriver.send_keys_to_element(input_element, "0", True)
+            else:
+                input_elements = self.webdriver.find_elements(
+                    By.XPATH, "//input[contains(@name, 'alloc') and @type='text']"
+                )
+                input_element = input_elements[current_index]
+                value = input_element.get_attribute("value")
+                press_enter = current_index == len(input_elements) - 2
+                self.webdriver.send_keys_to_element(
+                    input_element, Keys.CONTROL + "a", press_enter
+                )
+                self.webdriver.send_keys_to_element(
+                    input_element, Keys.BACKSPACE, press_enter
+                )
+                current_index += 1
+                if press_enter:
+                    break
+
+        self.webdriver.driver.get(URL)

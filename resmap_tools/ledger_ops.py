@@ -17,15 +17,6 @@ class LedgerScrape:
         amount = cells[3].get_text(strip=True)
         return transaction, amount
 
-    def scrape_prepaid(self):
-        HTML = self.webdriver.find_element(
-            By.XPATH,
-            "//tr[td[@class='td2' and contains(text(), 'Prepaid Rent')]]/td[@class='td2' and contains(text(), '$')]",
-        ).get_attribute("innerHTML")
-        has_parenthesis = bool(re.match(r"^\(\$ [\d,]+\.?\d*\)", HTML))
-        prepaid_value = self.webdriver.get_number_from_inner_html(HTML)
-        return prepaid_value, has_parenthesis
-
     def scrape_unit(self):
         return self.webdriver.find_element(
             By.XPATH,
@@ -43,9 +34,6 @@ class LedgerScrape:
         except:
             return None
 
-    def amount_is_credit(self, amount):
-        return True if amount.startswith("(") and amount.endswith(")") else False
-
 
 class LedgerFunctions(LedgerScrape):
     def __init__(self, webdriver):
@@ -53,10 +41,6 @@ class LedgerFunctions(LedgerScrape):
         self.transaction_ops = TransactionMaster(self.webdriver)
         self.credit_ops = CreditMaster(self.webdriver)
         self.nav_to_ledger = NavToLedgerMaster(self.webdriver)
-
-    def credit_all_charges(self, is_concession):
-        self.webdriver.click_element(self.webdriver.return_last_element("Add Credit"))
-        self.credit_ops.credit_charge(is_concession)
 
     def retrieve_rows(self, table_num=-4):
         table = self.webdriver.define_table(By.XPATH, self.choose_table(table_num))
@@ -77,32 +61,46 @@ class LedgerMaster(LedgerFunctions):
         self.thread_helper = thread_helper
 
     def loop_through_table(self, operation, chosen_item=None):
-        # prepaid, has_parenthesis = self.scrape_prepaid()
         rows = self.retrieve_rows()
+        URL = self.webdriver.driver.current_url
         for row in rows:
             if self.is_cancelled():
                 print("Loop operation cancelled")
                 break
-            if self.webdriver.is_header_row(row, "th3"):
+            if self.webdriver.skip_row(row, "th3"):
                 continue
             (
                 transaction,
                 amount,
             ) = self.retrieve_transaction_and_amount(row)
-            transaction_element = self.webdriver.return_last_element(transaction)
 
-            if operation == "unallocate_all":
-                if not self.amount_is_credit(amount):
+            transaction_element = self.webdriver.return_last_element(transaction)
+            transaction_is_credit = amount.startswith("(") or amount.endswith(")")
+            transaction_is_nsf = "NSF" in transaction
+
+            if transaction_is_nsf:
+                break
+
+            if operation == "unallocate_all_charges":
+                if not transaction_is_credit:
                     self.webdriver.click_element(transaction_element)
-                    self.transaction_ops.loop_through_table("unallocate_transaction")
+                    self.transaction_ops.unallocate_all("charge", URL)
+
+            if operation == "unallocate_all_credits":
+                if transaction_is_credit:
+                    self.webdriver.click_element(transaction_element)
+                    self.transaction_ops.unallocate_all("credit", URL)
 
             if operation == "allocate_all":
-                if self.amount_is_credit(amount):
+                if transaction_is_credit:
                     self.webdriver.click_element(transaction_element)
                     self.transaction_ops.auto_allocate()
 
             if operation == "credit_all_charges":
-                self.credit_all_charges(chosen_item)
+                self.webdriver.click_element(
+                    self.webdriver.return_last_element("Add Credit")
+                )
+                self.credit_ops.credit_charge(chosen_item)
 
             if operation == "delete_all_charges":
                 self.webdriver.click_element(transaction_element)
@@ -110,7 +108,8 @@ class LedgerMaster(LedgerFunctions):
 
             if operation == "delete_all_late_fees":
                 if "Late" in transaction or transaction in "Late":
-                    self.delete_charges("Late")
+                    self.webdriver.click_element(transaction_element)
+                    self.transaction_ops.delete_charge()
 
     def is_cancelled(self):
         if self.thread_helper:

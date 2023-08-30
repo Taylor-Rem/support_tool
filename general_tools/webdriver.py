@@ -176,7 +176,7 @@ class WebUtilityOperations(WebDriverBase):
 
 
 class WebdriverResmapOperations(WebDriverBase):
-    def is_header_row(self, row, class_name):
+    def skip_row(self, row, class_name):
         return row.find("td", class_=class_name) is not None
 
     def define_table(self, by, value):

@@ -47,9 +47,9 @@ class RedstarMaster(RedstarFunctions):
             if not self.webdriver.element_exists(By.XPATH, '//td//font[@color="red"]'):
                 continue
 
-            # self.loop_through_table("transaction_is_prepaid")
-            self.loop_through_table("unallocate_all")
-            self.loop_through_table("allocate_all")
+            # self.loop_through_table("unallocate_all_charges")
+            # self.loop_through_table("allocate_all")
+            self.loop_through_table("unallocate_all_credits")
 
     def is_cancelled(self):
         if self.thread_helper:
