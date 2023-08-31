@@ -73,14 +73,20 @@ class NavToLedgerOps(NavToLedgerScrape):
             print(f"there was a problem with ledger {resident}")
             pass
 
-    def open_former_ledger(self, unit, resident):
+    def open_former_ledger(self, unit, resident, URL=None):
         try:
             self.webdriver.click_element(unit)
             self.webdriver.click(
                 By.XPATH,
                 "/html/body/table[2]/tbody/tr[4]/td/table/tbody/tr/td/table[3]/tbody/tr[2]/td/table/tbody/tr[2]/td[5]/a",
             )
-            self.click_last_ledger()
+            try:
+                self.click_last_ledger()
+            except:
+                if URL:
+                    self.webdriver.driver.get(URL)
+                else:
+                    pass
         except NoSuchElementException:
             self.search_resident_and_open_ledger(resident)
 

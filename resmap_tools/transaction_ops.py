@@ -89,18 +89,10 @@ class TransactionMaster(TransactionFunctions):
     def __init__(self, webdriver):
         super().__init__(webdriver)
 
-    def loop_through_table(self, operation):
-        table = self.webdriver.define_table(
-            By.XPATH,
-            "/html/body/table[2]/tbody/tr[4]/td/table/tbody/tr/td/table[2]/tbody/tr[2]/td/table/tbody",
-        )
-        rows = self.webdriver.get_rows(table)
-        pass
-
     def unallocate_all(self, transaction_type, URL):
         current_index = 0
         while True:
-            if transaction_type == "charge":
+            if transaction_type == "Charges":
                 input_elements = self.webdriver.find_elements(
                     By.XPATH, "//form[@name='EditAllocs']//input[@type='text']"
                 )

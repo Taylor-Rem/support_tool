@@ -6,6 +6,11 @@ class FilterLedgers(ReportsBase):
     def __init__(self, report):
         super().__init__(report)
 
+    def convert_if_no_decimal(self, num):
+        if num == int(num):
+            return int(num)
+        return num
+
     def current_report_items(self):
         try:
             properties, units, residents = self.retrieve_report_info()
@@ -15,6 +20,7 @@ class FilterLedgers(ReportsBase):
         for i in range(len(properties)):
             property = properties[i]
             unit = float(units[i])
+            unit = self.convert_if_no_decimal(unit)
             resident = residents[i]
             json_entry = f"{property}_{unit}_{resident}"
             current_report_items.append(json_entry)
@@ -30,7 +36,7 @@ class FilterLedgers(ReportsBase):
         for item in unique_elements:
             prop, unit, res = item.split("_")
             properties.append(prop)
-            units.append(float(unit))
+            units.append(unit)
             residents.append(res)
         return properties, units, residents
 
@@ -57,8 +63,9 @@ class ReportMaster(FilterLedgers):
     def ledger_cycle(self, add=False):
         if add:
             self.add_to_json()
-        self.current_index += 1
-        self.open_new_ledger()
+        if self.current_index != len(self.properties) - 1:
+            self.current_index += 1
+            self.open_new_ledger()
 
     def add_to_json(self):
         json_entry = f"{self.property}_{self.unit}_{self.resident}"

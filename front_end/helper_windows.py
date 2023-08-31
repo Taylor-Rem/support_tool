@@ -114,6 +114,11 @@ class HelperWidget(QWidget):
         )
         return item if ok else None
 
+    def create_configured_button(self, label, title, category, choices, action):
+        return self.create_button(
+            label, partial(self.choose_values, title, category, choices, action)
+        )
+
 
 class ThreadRunningWindow(HelperWidget):
     def __init__(self, main_app, thread_helper, title="Running Operation"):
@@ -138,45 +143,50 @@ class LedgerOps(HelperWidget):
         self.create_ledger_buttons()
 
     def create_ledger_buttons(self):
-        BUTTONS_MAP = {
-            "Unallocate All": "unallocate_all",
-            "Allocate All": "allocate_all",
-            "Delete All Charges": "delete_all_charges",
-            "Delete All Late Fees": "delete_all_late_fees",
-        }
-        self.credit_all_charges_btn = self.create_button(
+        self.unallocate_all_btn = self.create_configured_button(
+            "Allocate All",
+            "Choose How",
+            "Type",
+            ["Auto", "Manual"],
+            "allocate_all",
+        )
+        self.unallocate_all_btn = self.create_configured_button(
+            "Unallocate All",
+            "Choose Transaction Type",
+            "Type",
+            ["Charges", "Credits"],
+            "unallocate_all",
+        )
+        self.credit_all_charges_btn = self.create_configured_button(
             "Credit All Charges",
-            partial(
-                self.choose_values,
-                "Choose Credit Type",
-                "Type",
-                ["Concession", "Credit"],
-                "credit_all_charges",
-            ),
+            "Choose Credit Type",
+            "Type",
+            ["Concession", "Credit"],
+            "credit_all_charges",
         )
-        self.change_ledger_btn = self.create_button(
+        self.delete_charges_btn = self.create_configured_button(
+            "Delete Charges",
+            "Select Charges",
+            "Type",
+            ["All", "Late Fees"],
+            "delete_charges",
+        )
+        self.change_ledger_btn = self.create_configured_button(
             "Go to Former/Current",
-            partial(
-                self.choose_values,
-                "Choose Resident",
-                "Resident",
-                ["Former", "Current"],
-                "change_ledger",
-            ),
+            "Choose Resident",
+            "Resident",
+            ["Former", "Current"],
+            "change_ledger",
         )
-        for btn_text, action in BUTTONS_MAP.items():
-            self.create_button(btn_text, partial(self.click_button, action))
 
     def click_button(self, operation, chosen_item=None):
         if chosen_item:
-            if operation == "credit_all_charges":
+            if operation == "change_ledger":
+                func = partial(self.ledger_master.change_ledger, chosen_item)
+            else:
                 func = partial(
                     self.ledger_master.loop_through_table, operation, chosen_item
                 )
-            else:
-                func = partial(self.ledger_master.change_ledger, chosen_item)
-        elif self.get_confirmation():
-            func = partial(self.ledger_master.loop_through_table, operation)
         else:
             print("Operation canceled.")
             return

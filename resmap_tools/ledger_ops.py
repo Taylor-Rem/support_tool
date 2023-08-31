@@ -11,6 +11,9 @@ class LedgerScrape:
     def __init__(self, webdriver):
         self.webdriver = webdriver
 
+    def get_URL(self):
+        return self.webdriver.driver.current_url
+
     def retrieve_transaction_and_amount(self, row):
         cells = row.find_all("td")
         transaction = cells[2].get_text(strip=True)
@@ -47,12 +50,16 @@ class LedgerFunctions(LedgerScrape):
         return self.webdriver.get_rows(table)
 
     def change_ledger(self, chosen_item):
+        URL = self.get_URL()
         unit = self.scrape_unit()
         if chosen_item == "Current":
             self.webdriver.click_element(unit)
-            self.nav_to_ledger.click_ledger()
+            try:
+                self.nav_to_ledger.click_ledger()
+            except:
+                self.webdriver.driver.get(URL)
         else:
-            self.nav_to_ledger.open_former_ledger(unit, None)
+            self.nav_to_ledger.open_former_ledger(unit, None, URL)
 
 
 class LedgerMaster(LedgerFunctions):
@@ -61,8 +68,9 @@ class LedgerMaster(LedgerFunctions):
         self.thread_helper = thread_helper
 
     def loop_through_table(self, operation, chosen_item=None):
+        URL = self.get_URL()
         rows = self.retrieve_rows()
-        URL = self.webdriver.driver.current_url
+
         for row in rows:
             if self.is_cancelled():
                 print("Loop operation cancelled")
@@ -81,15 +89,12 @@ class LedgerMaster(LedgerFunctions):
             if transaction_is_nsf:
                 break
 
-            if operation == "unallocate_all_charges":
-                if not transaction_is_credit:
+            if operation == "unallocate_all":
+                if (chosen_item == "Charges" and not transaction_is_credit) or (
+                    chosen_item == "Credits" and transaction_is_credit
+                ):
                     self.webdriver.click_element(transaction_element)
-                    self.transaction_ops.unallocate_all("charge", URL)
-
-            if operation == "unallocate_all_credits":
-                if transaction_is_credit:
-                    self.webdriver.click_element(transaction_element)
-                    self.transaction_ops.unallocate_all("credit", URL)
+                    self.transaction_ops.unallocate_all(chosen_item, URL)
 
             if operation == "allocate_all":
                 if transaction_is_credit:
@@ -103,11 +108,10 @@ class LedgerMaster(LedgerFunctions):
                 self.credit_ops.credit_charge(chosen_item)
 
             if operation == "delete_all_charges":
-                self.webdriver.click_element(transaction_element)
-                self.transaction_ops.delete_charge()
-
-            if operation == "delete_all_late_fees":
-                if "Late" in transaction or transaction in "Late":
+                if chosen_item == "All" or (
+                    chosen_item == "Late Fees"
+                    and ("Late" in transaction or transaction in "Late")
+                ):
                     self.webdriver.click_element(transaction_element)
                     self.transaction_ops.delete_charge()
 
