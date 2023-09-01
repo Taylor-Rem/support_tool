@@ -7,7 +7,7 @@ class CreditScrape:
         self.webdriver = webdriver
 
     def get_name_and_bill_amount(self):
-        rows = self.driver.find_elements(By.XPATH, "//tr[contains(@class, 'td')]")
+        rows = self.webdriver.find_elements(By.XPATH, "//tr[contains(@class, 'td')]")
         row = rows[-1]
         columns = row.find_elements(By.TAG_NAME, "td")
         bill_amount_str = columns[2].text.strip()
@@ -19,7 +19,7 @@ class CreditScrape:
         self.bill_amount = float(bill_amount_replace)
 
     def define_select(self):
-        select_element = self.driver.find_element(By.XPATH, "//select[@name='ttid']")
+        select_element = self.webdriver.find_element(By.XPATH, "//select[@name='ttid']")
         self.select = Select(select_element)
 
 
@@ -34,13 +34,13 @@ class CreditFunctions(CreditScrape):
             self.select.select_by_visible_text(self.name)
 
     def send_credit_keys(self):
-        credit_input = self.driver.find_element(
+        credit_input = self.webdriver.find_element(
             By.XPATH, "//input[@type='text' and @name='amount']"
         )
         credit_input.send_keys(self.bill_amount)
-        comments = self.driver.find_element(By.XPATH, "//textarea[@name='comments']")
+        comments = self.webdriver.find_element(By.XPATH, "//textarea[@name='comments']")
         comments.send_keys("charge concession")
-        self.driver.find_element(
+        self.webdriver.find_element(
             By.XPATH, "//input[@type='submit' and @name='submit1']"
         ).click()
 

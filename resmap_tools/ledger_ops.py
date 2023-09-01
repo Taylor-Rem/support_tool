@@ -26,6 +26,15 @@ class LedgerScrape:
             "/html/body/table[2]/tbody/tr[4]/td/table/tbody/tr/td/table[3]/tbody/tr[2]/td/table/tbody/tr[3]/td[2]/a",
         )
 
+    def scrape_prepaid(self):
+        prepaid_element = self.webdriver.find_element(
+            By.XPATH,
+            "/html/body/table[2]/tbody/tr[4]/td/table/tbody/tr/td/table[3]/tbody/tr[2]/td/table/tbody/tr[3]/td[5]",
+        )
+        value = prepaid_element.text.strip()
+        prepaid_is_credit = ("(" or ")") not in value
+        return self.webdriver.get_number_from_inner_html(value), prepaid_is_credit
+
     def choose_table(self, num):
         return f"/html/body/table[2]/tbody/tr[4]/td/table/tbody/tr/td/table[last(){num}]/tbody/tr[2]/td/table/tbody"
 
@@ -45,7 +54,7 @@ class LedgerFunctions(LedgerScrape):
         self.credit_ops = CreditMaster(self.webdriver)
         self.nav_to_ledger = NavToLedgerMaster(self.webdriver)
 
-    def retrieve_rows(self, table_num=-4):
+    def retrieve_rows(self, table_num):
         table = self.webdriver.define_table(By.XPATH, self.choose_table(table_num))
         return self.webdriver.get_rows(table)
 
@@ -67,9 +76,9 @@ class LedgerMaster(LedgerFunctions):
         super().__init__(webdriver)
         self.thread_helper = thread_helper
 
-    def loop_through_table(self, operation, chosen_item=None):
+    def loop_through_table(self, operation, chosen_item=None, chosen_month=-4):
         URL = self.get_URL()
-        rows = self.retrieve_rows()
+        rows = self.retrieve_rows(chosen_month)
 
         for row in rows:
             if self.is_cancelled():
@@ -83,32 +92,54 @@ class LedgerMaster(LedgerFunctions):
             ) = self.retrieve_transaction_and_amount(row)
 
             transaction_element = self.webdriver.return_last_element(transaction)
-            transaction_is_credit = amount.startswith("(") or amount.endswith(")")
+            transaction_is_credit = ("(" or ")") in amount
             transaction_is_nsf = "NSF" in transaction
 
             if transaction_is_nsf:
                 break
 
             if operation == "unallocate_all":
-                if (chosen_item == "Charges" and not transaction_is_credit) or (
-                    chosen_item == "Credits" and transaction_is_credit
-                ):
-                    self.webdriver.click_element(transaction_element)
-                    self.transaction_ops.unallocate_all(chosen_item, URL)
+                try:
+                    if (chosen_item == "Charges" and not transaction_is_credit) or (
+                        (chosen_item == "Credits" and transaction_is_credit)
+                        and ("Street Lamp" not in transaction)
+                    ):
+                        self.webdriver.click_element(transaction_element)
+                        self.transaction_ops.unallocate_all(chosen_item, URL)
+
+                except:
+                    pass
 
             if operation == "allocate_all":
-                if transaction_is_credit:
-                    self.webdriver.click_element(transaction_element)
-                    self.transaction_ops.auto_allocate()
+                try:
+                    prepaid, prepaid_is_credit = self.scrape_prepaid()
+                    if (chosen_item == "Auto" and transaction_is_credit) or (
+                        (chosen_item == "Manual")
+                        and (not transaction_is_credit)
+                        and (prepaid != 0)
+                        and (prepaid_is_credit)
+                    ):
+                        self.webdriver.click_element(transaction_element)
+                        self.transaction_ops.allocate_transactions(
+                            chosen_item, prepaid, URL
+                        )
+                except:
+                    pass
 
             if operation == "credit_all_charges":
-                self.webdriver.click_element(
-                    self.webdriver.return_last_element("Add Credit")
-                )
-                self.credit_ops.credit_charge(chosen_item)
+                if transaction_is_credit:
+                    continue
+                try:
+                    self.webdriver.click_element(
+                        self.webdriver.return_last_element("Add Credit")
+                    )
+                    self.credit_ops.credit_charge(chosen_item)
+                except:
+                    self.webdriver.driver.get(URL)
+                    break
 
-            if operation == "delete_all_charges":
-                if chosen_item == "All" or (
+            if operation == "delete_charges":
+                if (chosen_item == "All") or (
                     chosen_item == "Late Fees"
                     and ("Late" in transaction or transaction in "Late")
                 ):

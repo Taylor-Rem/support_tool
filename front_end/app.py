@@ -66,9 +66,7 @@ class App(QWidget):
         button_configs = [
             {
                 "name": "Ledger Tools",
-                "method": lambda: self.switch_window(
-                    self.ledger_tools, True, self.webdriver.res_map_url
-                ),
+                "method": lambda: self.switch_window(self.ledger_tools),
             },
             {
                 "name": "Ticket Helper",

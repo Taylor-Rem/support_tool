@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import (
     QLabel,
     QMessageBox,
     QInputDialog,
+    QComboBox,
 )
 from PyQt5.QtCore import QThread, pyqtSignal
 
@@ -96,6 +97,15 @@ class HelperWidget(QWidget):
     def add_back_btn(self):
         self.back_btn = self.create_button("⬅️ Back", self.go_back)
 
+    def create_dropdown(self, items, callback, current_index=0):
+        dropdown = QComboBox(self)
+        dropdown.addItems(items)
+        dropdown.setCurrentIndex(current_index)
+        dropdown.currentIndexChanged.connect(callback)
+
+        self.layout.addWidget(dropdown)
+        return dropdown
+
     def get_confirmation(self, message="Are You Sure?", title="Confirm Operation"):
         confirm_dialog = QMessageBox()
         confirm_dialog.setWindowTitle(title)
@@ -140,39 +150,49 @@ class LedgerOps(HelperWidget):
     def __init__(self, main_app, title):
         super().__init__(main_app, title)
         self.ledger_master = LedgerMaster(main_app.webdriver)
+
+        self.selected_month = -4
+
+        self.create_ledger_widgets()
+
+    def create_ledger_widgets(self):
+        self.create_dropdown(["Current Month", "Previous Month"], self.dropdown_changed)
         self.create_ledger_buttons()
+
+    def dropdown_changed(self, index):
+        self.selected_month = -4 if index == 0 else -5
 
     def create_ledger_buttons(self):
         self.unallocate_all_btn = self.create_configured_button(
-            "Allocate All",
+            "🟢 Allocate All",
             "Choose How",
             "Type",
             ["Auto", "Manual"],
             "allocate_all",
         )
         self.unallocate_all_btn = self.create_configured_button(
-            "Unallocate All",
+            "🟠 Unallocate All",
             "Choose Transaction Type",
             "Type",
             ["Charges", "Credits"],
             "unallocate_all",
         )
         self.credit_all_charges_btn = self.create_configured_button(
-            "Credit All Charges",
+            "🔵 Credit All Charges",
             "Choose Credit Type",
             "Type",
             ["Concession", "Credit"],
             "credit_all_charges",
         )
         self.delete_charges_btn = self.create_configured_button(
-            "Delete Charges",
+            "🔴 Delete Charges",
             "Select Charges",
             "Type",
             ["All", "Late Fees"],
             "delete_charges",
         )
         self.change_ledger_btn = self.create_configured_button(
-            "Go to Former/Current",
+            "🟡 Go to Former/Current",
             "Choose Resident",
             "Resident",
             ["Former", "Current"],
@@ -185,7 +205,10 @@ class LedgerOps(HelperWidget):
                 func = partial(self.ledger_master.change_ledger, chosen_item)
             else:
                 func = partial(
-                    self.ledger_master.loop_through_table, operation, chosen_item
+                    self.ledger_master.loop_through_table,
+                    operation,
+                    chosen_item,
+                    chosen_month=self.selected_month,
                 )
         else:
             print("Operation canceled.")

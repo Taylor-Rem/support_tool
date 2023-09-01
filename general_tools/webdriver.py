@@ -97,9 +97,7 @@ class WebElementOperations(WebDriverBase):
             return None
 
     def return_last_element(self, name):
-        elements = self.find_elements(
-            By.XPATH, f"//*[self::a or self::button][contains(., '{name}')]"
-        )
+        elements = self.find_elements(By.XPATH, f"//a[text() = '{name}']")
         return elements[-1] if elements else None
 
     def element_exists(self, by, value):
@@ -120,8 +118,6 @@ class WebElementOperations(WebDriverBase):
         else:
             print("Value not found")
             return None
-
-
 
 
 class WebUtilityOperations(WebDriverBase):
