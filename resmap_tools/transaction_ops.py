@@ -53,32 +53,33 @@ class TransactionMaster(TransactionFunctions):
     def __init__(self, webdriver):
         super().__init__(webdriver)
 
-    def unallocate_all(self, transaction_type, URL=None):
+    def unallocate_all_charges(self, URL=None):
+        while True:
+            input_element = self.charge_scrape_top_allocation()
+            value = input_element.get_attribute("value")
+            if value == "0":
+                break
+            self.webdriver.send_keys_to_element(input_element, "0", True)
+        self.webdriver.driver.get(URL) if URL else self.webdriver.driver.back()
+
+    def unallocate_all_credits(self, URL=None):
         current_index = 0
         while True:
-            if transaction_type == "Charges":
-                input_element = self.charge_scrape_top_allocation()
-                value = input_element.get_attribute("value")
-                if value == "0":
-                    break
-                self.webdriver.send_keys_to_element(input_element, "0", True)
-            else:
-                input_elements = self.webdriver.find_elements(
-                    By.XPATH, "//input[contains(@name, 'alloc') and @type='text']"
-                )
-                input_element = input_elements[current_index]
-                value = input_element.get_attribute("value")
-                press_enter = current_index == len(input_elements) - 2
-                self.webdriver.send_keys_to_element(
-                    input_element, Keys.CONTROL + "a", press_enter
-                )
-                self.webdriver.send_keys_to_element(
-                    input_element, Keys.BACKSPACE, press_enter
-                )
-                current_index += 1
-                if press_enter:
-                    break
-            self.webdriver.driver.get(URL) if URL else self.webdriver.driver.back()
+            input_elements = self.webdriver.find_elements(
+                By.XPATH, "//input[contains(@name, 'alloc') and @type='text']"
+            )
+            input_element = input_elements[current_index]
+            press_enter = current_index == len(input_elements) - 2
+            self.webdriver.send_keys_to_element(
+                input_element, Keys.CONTROL + "a", press_enter
+            )
+            self.webdriver.send_keys_to_element(
+                input_element, Keys.BACKSPACE, press_enter
+            )
+            current_index += 1
+            if press_enter:
+                break
+        self.webdriver.get(URL) if URL else self.webdriver.driver.back()
 
     def allocate_transactions(self, chosen_item, prepaid, URL=None):
         if chosen_item == "Auto":

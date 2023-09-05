@@ -9,7 +9,6 @@ from general_tools.webdriver import WebdriverOperations
 from front_end.tool_windows import (
     LedgerTools,
     TicketWindow,
-    TicketOpsWindow,
     ReportWindow,
     ReportOpsWindow,
     RedstarWindow,
@@ -38,7 +37,6 @@ class App(QWidget):
         self.init_main_window()
         self.ledger_tools = LedgerTools(self)
         self.ticket_window = TicketWindow(self)
-        self.ticket_ops_window = TicketOpsWindow(self)
         self.report_window = ReportWindow(self)
         self.report_ops_window = ReportOpsWindow(self)
         self.redstar_window = RedstarWindow(self)
@@ -49,7 +47,6 @@ class App(QWidget):
             self.main_window,
             self.ledger_tools,
             self.ticket_window,
-            self.ticket_ops_window,
             self.report_window,
             self.report_ops_window,
             self.redstar_window,

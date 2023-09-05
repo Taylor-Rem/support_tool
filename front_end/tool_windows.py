@@ -7,7 +7,7 @@ from applications.redstar_master import RedstarMaster
 
 class LedgerTools(LedgerOps):
     def __init__(self, main_app):
-        super().__init__(main_app, "Redstar Helper")
+        super().__init__(main_app, "Ledger Tools")
         self.add_back_btn()
 
 
@@ -33,17 +33,11 @@ class TicketWindow(HelperWidget):
         self.add_back_btn()
 
     def open_tickets(self):
-        self.main_app.switch_window(self.main_app.ticket_ops_window)
+        self.main_app.switch_window(self.main_app.ledger_tools)
         self.ticket_master.open_ticket()
 
     def change_ticket_status(self, icon, back=None):
         self.ticket_master.change_ticket_status(icon, back)
-
-
-class TicketOpsWindow(LedgerOps):
-    def __init__(self, main_app):
-        super().__init__(main_app, "Ticket Helper")
-        self.add_back_btn()
 
 
 class ReportWindow(HelperWidget):

@@ -102,7 +102,6 @@ class HelperWidget(QWidget):
         dropdown.addItems(items)
         dropdown.setCurrentIndex(current_index)
         dropdown.currentIndexChanged.connect(callback)
-
         self.layout.addWidget(dropdown)
         return dropdown
 
@@ -160,6 +159,7 @@ class LedgerOps(HelperWidget):
         self.create_ledger_buttons()
 
     def dropdown_changed(self, index):
+        print(index)
         self.selected_month = -4 if index == 0 else -5
 
     def create_ledger_buttons(self):
@@ -200,6 +200,7 @@ class LedgerOps(HelperWidget):
         )
 
     def click_button(self, operation, chosen_item=None):
+        print(self.selected_month)
         if chosen_item:
             if operation == "change_ledger":
                 func = partial(self.ledger_master.change_ledger, chosen_item)

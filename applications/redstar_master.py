@@ -47,10 +47,10 @@ class RedstarMaster(RedstarFunctions):
             if not self.webdriver.element_exists(By.XPATH, '//td//font[@color="red"]'):
                 continue
 
-            self.loop_through_table("unallocate_all", "Charges")
-            self.loop_through_table("unallocate_all", "Credits")
-            self.loop_through_table("allocate_all", "Manual")
-            self.loop_through_table("allocate_all", "Auto")
+            self.loop_through_table("unallocate_all", "Charges", is_autostar=True)
+            self.loop_through_table("unallocate_all", "Credits", is_autostar=True)
+            self.loop_through_table("allocate_all", "Manual", is_autostar=True)
+            self.loop_through_table("allocate_all", "Auto", is_autostar=True)
 
     def is_cancelled(self):
         if self.thread_helper:

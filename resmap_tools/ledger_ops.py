@@ -1,7 +1,5 @@
 from selenium.webdriver.common.by import By
 
-import re
-
 from resmap_tools.credit_ops import CreditMaster
 from resmap_tools.transaction_ops import TransactionMaster
 from resmap_tools.nav_to_ledger import NavToLedgerMaster
@@ -14,10 +12,10 @@ class LedgerScrape:
     def get_URL(self):
         return self.webdriver.driver.current_url
 
-    def retrieve_transaction_and_amount(self, row):
-        cells = row.find_all("td")
-        transaction = cells[2].get_text(strip=True)
-        amount = cells[3].get_text(strip=True)
+    def get_transaction_and_amount(self, row):
+        cells = row.find_elements(By.TAG_NAME, "td")
+        transaction = cells[2].text.strip()
+        amount = cells[3].text.strip()
         return transaction, amount
 
     def scrape_unit(self):
@@ -32,19 +30,11 @@ class LedgerScrape:
             "/html/body/table[2]/tbody/tr[4]/td/table/tbody/tr/td/table[3]/tbody/tr[2]/td/table/tbody/tr[3]/td[5]",
         )
         value = prepaid_element.text.strip()
-        prepaid_is_credit = ("(" or ")") not in value
+        prepaid_is_credit = self.is_credit(value)
         return self.webdriver.get_number_from_inner_html(value), prepaid_is_credit
 
     def choose_table(self, num):
         return f"/html/body/table[2]/tbody/tr[4]/td/table/tbody/tr/td/table[last(){num}]/tbody/tr[2]/td/table/tbody"
-
-    def retrieve_amount_from_bottom(self, row):
-        try:
-            cells = row.find_all("td")
-            amount = cells[1].get_text(strip=True)
-            return self.get_number_from_string(amount)
-        except:
-            return None
 
 
 class LedgerFunctions(LedgerScrape):
@@ -53,6 +43,9 @@ class LedgerFunctions(LedgerScrape):
         self.transaction_ops = TransactionMaster(self.webdriver)
         self.credit_ops = CreditMaster(self.webdriver)
         self.nav_to_ledger = NavToLedgerMaster(self.webdriver)
+
+    def is_credit(self, text):
+        return "(" not in text and ")" not in text
 
     def retrieve_rows(self, table_num):
         table = self.webdriver.define_table(By.XPATH, self.choose_table(table_num))
@@ -76,23 +69,38 @@ class LedgerMaster(LedgerFunctions):
         super().__init__(webdriver)
         self.thread_helper = thread_helper
 
-    def loop_through_table(self, operation, chosen_item=None, chosen_month=-4):
+    def loop_through_table(
+        self, operation, chosen_item=None, chosen_month=-4, is_autostar=False
+    ):
         URL = self.get_URL()
-        rows = self.retrieve_rows(chosen_month)
+        idx = 0
 
-        for row in rows:
-            if self.is_cancelled():
-                print("Loop operation cancelled")
+        while True:
+            rows = self.retrieve_rows(chosen_month)
+            redstar_in_ledger = self.webdriver.element_exists(
+                By.XPATH, '//td//font[@color="red"]'
+            )
+
+            if (
+                (idx >= len(rows))
+                or (self.is_cancelled)
+                or ((is_autostar) and (not redstar_in_ledger))
+            ):
                 break
-            if self.webdriver.skip_row(row, "th3"):
-                continue
-            (
-                transaction,
-                amount,
-            ) = self.retrieve_transaction_and_amount(row)
 
-            transaction_element = self.webdriver.return_last_element(transaction)
-            transaction_is_credit = ("(" or ")") in amount
+            row = rows[idx]
+
+            if self.webdriver.skip_row(row, "th3"):
+                idx += 1
+                continue
+
+            transaction, amount = self.get_transaction_and_amount(row)
+
+            transaction_element = row.find_element(
+                By.XPATH, f".//a[text() = '{transaction}']"
+            )
+
+            transaction_is_credit = self.is_credit(amount)
             transaction_is_nsf = "NSF" in transaction
 
             if transaction_is_nsf:
@@ -100,13 +108,12 @@ class LedgerMaster(LedgerFunctions):
 
             if operation == "unallocate_all":
                 try:
-                    if (chosen_item == "Charges" and not transaction_is_credit) or (
-                        (chosen_item == "Credits" and transaction_is_credit)
-                        and ("Street Lamp" not in transaction)
-                    ):
+                    if chosen_item == "Charges" and not transaction_is_credit:
                         self.webdriver.click_element(transaction_element)
-                        self.transaction_ops.unallocate_all(chosen_item, URL)
-
+                        self.transaction_ops.unallocate_all_charges(URL)
+                    elif chosen_item == "Credits" and transaction_is_credit:
+                        self.webdriver.click_element(transaction_element)
+                        self.transaction_ops.unallocate_all_credits(URL)
                 except:
                     pass
 
@@ -139,12 +146,15 @@ class LedgerMaster(LedgerFunctions):
                     break
 
             if operation == "delete_charges":
+                if transaction_is_credit:
+                    continue
                 if (chosen_item == "All") or (
                     chosen_item == "Late Fees"
                     and ("Late" in transaction or transaction in "Late")
                 ):
                     self.webdriver.click_element(transaction_element)
                     self.transaction_ops.delete_charge()
+            idx += 1
 
     def is_cancelled(self):
         if self.thread_helper:

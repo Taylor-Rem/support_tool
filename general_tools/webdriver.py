@@ -13,7 +13,6 @@ from selenium.common.exceptions import (
 from selenium.webdriver.common.action_chains import ActionChains
 import re
 from config import username, password
-from bs4 import BeautifulSoup
 
 
 class WebDriverBase:
@@ -175,18 +174,19 @@ class WebUtilityOperations(WebDriverBase):
 
 class WebdriverResmapOperations(WebDriverBase):
     def skip_row(self, row, class_name):
-        return row.find("td", class_=class_name) is not None
+        try:
+            row.find_element(By.CSS_SELECTOR, f"td.{class_name}")
+            return True
+        except:
+            return False
 
     def define_table(self, by, value):
-        table_elements = self.driver.find_elements(by, value)
-        table = [element.get_attribute("outerHTML") for element in table_elements]
-        return table
+        return self.driver.find_elements(by, value)
 
     def get_rows(self, table):
         all_rows = []  # Initialize an empty list to collect all rows
-        for table_html in table:
-            soup = BeautifulSoup(table_html, "html.parser")
-            rows = soup.find_all("tr")
+        for table_element in table:
+            rows = table_element.find_elements(By.TAG_NAME, "tr")
             all_rows.extend(rows)  # Add rows to the list
         return all_rows  # Return the list of all rows
 

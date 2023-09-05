@@ -26,8 +26,11 @@ class OSInteract(OSBase):
         ]
         for report in reports:
             report_path = f"{self.root_path}/{self.day}/{report}"
-            if not os.path.exists(report_path):
-                os.makedirs(report_path)
+            json_path = f"{self.root_path}/json_reports/"
+            paths = [report_path, json_path]
+            for path in paths:
+                if not os.path.exists(path):
+                    os.makedirs(path)
 
 
 class ReportsBase(OSBase):

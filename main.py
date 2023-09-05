@@ -3,7 +3,8 @@ from PyQt5.QtWidgets import QApplication
 from general_tools.os_ops import OSInteract
 
 if __name__ == "__main__":
-    OSInteract().create_folders()
+    os_interact = OSInteract()
+    os_interact.create_folders()
     app = QApplication([])
     main_app = None
     try:
