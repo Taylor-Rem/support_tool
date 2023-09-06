@@ -14,14 +14,6 @@ class TransactionScrape:
         )
         return float(total_amount.get_attribute("value"))
 
-    def charge_scrape_allocations(self):
-        return self.webdriver.find_elements(
-            By.XPATH, "//form[@name='EditAllocs']//input[@type='text']"
-        )
-
-    def charge_scrape_top_allocation(self):
-        return self.charge_scrape_allocations()[0]
-
 
 class TransactionFunctions(TransactionScrape):
     def __init__(self, webdriver):
@@ -34,12 +26,6 @@ class TransactionFunctions(TransactionScrape):
         except NoSuchElementException:
             self.webdriver.driver.back()
 
-    def allocate_from_prepaid(self, prepaid):
-        total_amount = self.scrape_total()
-        key = total_amount if total_amount < prepaid else prepaid
-        input_element = self.charge_scrape_top_allocation()
-        self.webdriver.send_keys_to_element(input_element, key, True)
-
     def delete_charge(self):
         try:
             self.webdriver.click(By.NAME, "delete")
@@ -48,42 +34,58 @@ class TransactionFunctions(TransactionScrape):
         except:
             self.webdriver.driver.back()
 
+    def clear_element(self, input_element, enter):
+        self.webdriver.send_keys_to_element(input_element, Keys.CONTROL + "a", False)
+        self.webdriver.send_keys_to_element(input_element, Keys.BACKSPACE, enter)
+
 
 class TransactionMaster(TransactionFunctions):
     def __init__(self, webdriver):
         super().__init__(webdriver)
 
-    def unallocate_all_charges(self, URL=None):
+    def loop(self, operation, URL, prepaid=None):
+        idx = 0
         while True:
-            input_element = self.charge_scrape_top_allocation()
-            value = input_element.get_attribute("value")
-            if value == "0":
-                break
-            self.webdriver.send_keys_to_element(input_element, "0", True)
-        self.webdriver.driver.get(URL) if URL else self.webdriver.driver.back()
+            table_identifier = (
+                "/html/body/table[2]/tbody/tr[4]/td/table/tbody/tr/td/table[2]/tbody/tr[2]/td/table/tbody"
+                if "charge" in operation
+                else "/html/body/table[2]/tbody/tr[4]/td/table/tbody/tr/td/form/table[2]/tbody/tr[2]/td/table/tbody"
+            )
+            table = self.webdriver.find_element(By.XPATH, table_identifier)
+            rows = table.find_elements(By.XPATH, ".//tr")
 
-    def unallocate_all_credits(self, URL=None):
-        current_index = 0
-        while True:
-            input_elements = self.webdriver.find_elements(
-                By.XPATH, "//input[contains(@name, 'alloc') and @type='text']"
-            )
-            input_element = input_elements[current_index]
-            press_enter = current_index == len(input_elements) - 2
-            self.webdriver.send_keys_to_element(
-                input_element, Keys.CONTROL + "a", press_enter
-            )
-            self.webdriver.send_keys_to_element(
-                input_element, Keys.BACKSPACE, press_enter
-            )
-            current_index += 1
-            if press_enter:
+            if idx >= len(rows):
                 break
-        self.webdriver.get(URL) if URL else self.webdriver.driver.back()
 
-    def allocate_transactions(self, chosen_item, prepaid, URL=None):
-        if chosen_item == "Auto":
-            self.auto_allocate()
-        else:
-            self.allocate_from_prepaid(prepaid)
-        self.webdriver.driver.get(URL) if URL else self.webdriver.driver.back()
+            row = rows[idx]
+
+            try:
+                input_element = row.find_element(By.XPATH, ".//input[@type='text']")
+            except:
+                idx += 1
+                continue
+
+            total_amount = self.scrape_total()
+            value = float(input_element.get_attribute("value"))
+
+            if operation == "unallocate_charge":
+                if value == 0:
+                    break
+                self.clear_element(input_element, True)
+
+            if operation == "unallocate_credit":
+                press_enter = idx >= len(rows) - 1
+                self.clear_element(input_element, press_enter)
+                idx += 1
+                if press_enter:
+                    break
+
+            if operation == "allocate_charge":
+                if value != 0:
+                    idx += 1
+                    continue
+                amount_to_allocate = round(total_amount - value, 2)
+                key = amount_to_allocate if amount_to_allocate < prepaid else prepaid
+                self.webdriver.send_keys_to_element(input_element, key, True)
+                break
+        self.webdriver.driver.get(URL)

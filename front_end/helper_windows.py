@@ -188,7 +188,7 @@ class LedgerOps(HelperWidget):
             "🔴 Delete Charges",
             "Select Charges",
             "Type",
-            ["All", "Late Fees"],
+            ["All", "Except Metered", "Late Fees"],
             "delete_charges",
         )
         self.change_ledger_btn = self.create_configured_button(
@@ -200,7 +200,6 @@ class LedgerOps(HelperWidget):
         )
 
     def click_button(self, operation, chosen_item=None):
-        print(self.selected_month)
         if chosen_item:
             if operation == "change_ledger":
                 func = partial(self.ledger_master.change_ledger, chosen_item)
