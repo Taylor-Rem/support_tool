@@ -48,7 +48,7 @@ class TransactionMaster(TransactionFunctions):
         while True:
             table_identifier = (
                 "/html/body/table[2]/tbody/tr[4]/td/table/tbody/tr/td/table[2]/tbody/tr[2]/td/table/tbody"
-                if "charge" in operation
+                if operation == "Charges"
                 else "/html/body/table[2]/tbody/tr[4]/td/table/tbody/tr/td/form/table[2]/tbody/tr[2]/td/table/tbody"
             )
             table = self.webdriver.find_element(By.XPATH, table_identifier)
@@ -61,20 +61,18 @@ class TransactionMaster(TransactionFunctions):
 
             try:
                 input_element = row.find_element(By.XPATH, ".//input[@type='text']")
+                value = float(input_element.get_attribute("value"))
             except:
                 idx += 1
                 continue
 
-            total_amount = self.scrape_total()
-            value = float(input_element.get_attribute("value"))
-
-            if operation == "unallocate_charge":
-                if value == 0:
+            if operation == "Charges":
+                if value == 0 or value == "":
                     break
                 self.clear_element(input_element, True)
 
-            if operation == "unallocate_credit":
-                press_enter = idx >= len(rows) - 1
+            if operation == "Credits":
+                press_enter = idx >= len(rows) - 2
                 self.clear_element(input_element, press_enter)
                 idx += 1
                 if press_enter:
@@ -84,6 +82,7 @@ class TransactionMaster(TransactionFunctions):
                 if value != 0:
                     idx += 1
                     continue
+                total_amount = self.scrape_total()
                 amount_to_allocate = round(total_amount - value, 2)
                 key = amount_to_allocate if amount_to_allocate < prepaid else prepaid
                 self.webdriver.send_keys_to_element(input_element, key, True)

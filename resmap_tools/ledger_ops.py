@@ -76,14 +76,54 @@ class LedgerMaster(LedgerFunctions):
         super().__init__(webdriver)
         self.thread_helper = thread_helper
 
+    def delete_charge(self, transaction_element):
+        self.webdriver.click_element(transaction_element)
+        self.transaction_ops.delete_charge()
+
+    def credit_all_charges(self, chosen_item):
+        self.webdriver.click_element(self.webdriver.return_last_element("Add Credit"))
+        self.credit_ops.credit_charge(chosen_item)
+
+    def auto_allocate(self, transaction_element):
+        self.webdriver.click_element(transaction_element)
+        self.transaction_ops.auto_allocate()
+
+    def allocate_charge(self, transaction_element, URL, prepaid):
+        self.webdriver.click_element(transaction_element)
+        self.transaction_ops.loop("allocate_charge", URL, prepaid)
+
+    def unallocate_all(self, transaction_element, operation, URL):
+        self.webdriver.click_element(transaction_element)
+        self.transaction_ops.loop(operation, URL)
+
     def loop_through_table(
-        self, operation, chosen_item=None, chosen_month=-4, is_autostar=False
+        self,
+        operation,
+        chosen_item=None,
+        chosen_month=-4,
+        is_autostar=False,
+        reloop=False,
     ):
         URL = self.get_URL()
         idx = 0
+        has_late_credit = False
+
+        if not reloop:
+            rows = self.retrieve_rows(chosen_month)
+            for row in rows:
+                if self.webdriver.skip_row(row, "th3"):
+                    continue
+                transaction, amount = self.get_transaction_and_amount(row)
+                if "Late Fee Credit" in transaction:
+                    has_late_credit = True
+        if has_late_credit:
+            self.loop_through_table(
+                "delete_charges", "Late Fees", chosen_month=chosen_month, reloop=True
+            )
 
         while True:
             rows = self.retrieve_rows(chosen_month)
+
             redstar_in_ledger = self.webdriver.element_exists(
                 By.XPATH, '//td//font[@color="red"]'
             )
@@ -102,66 +142,55 @@ class LedgerMaster(LedgerFunctions):
 
             transaction, amount = self.get_transaction_and_amount(row)
 
-            transaction_element = row.find_element(
-                By.XPATH, f".//a[text() = '{transaction}']"
-            )
+            if "system" in transaction.lower():
+                transaction = "System"
 
-            transaction_is_credit = self.is_credit(amount)
             transaction_is_nsf = "NSF" in transaction
-            transaction_is_metered = self.is_metered(row)
-
             if transaction_is_nsf:
                 break
 
+            transaction_element = row.find_element(
+                By.XPATH, f".//a[contains(text(), '{transaction}')]"
+            )
+
+            transaction_is_credit = self.is_credit(amount)
+            transaction_is_metered = self.is_metered(row)
+
             if operation == "unallocate_all":
-                if chosen_item == "Charges" and not transaction_is_credit:
-                    self.webdriver.click_element(transaction_element)
-                    self.transaction_ops.loop("unallocate_charge", URL)
-                elif chosen_item == "Credits" and transaction_is_credit:
-                    self.webdriver.click_element(transaction_element)
-                    self.transaction_ops.loop("unallocate_credit", URL)
+                if (chosen_item == "Charges" and not transaction_is_credit) or (
+                    chosen_item == "Credits" and transaction_is_credit
+                ):
+                    self.unallocate_all(transaction_element, chosen_item, URL)
 
             if operation == "allocate_all":
+                if chosen_item == "Auto" and transaction_is_credit:
+                    self.auto_allocate(transaction_element)
+
                 prepaid, prepaid_is_credit = self.scrape_prepaid()
                 if (
-                    (chosen_item == "Manual")
+                    (chosen_item == "Charges")
                     and (not transaction_is_credit)
                     and (prepaid != 0)
                     and (prepaid_is_credit)
                 ):
-                    self.webdriver.click_element(transaction_element)
-                    self.transaction_ops.loop("allocate_charge", URL, prepaid)
-
-                if chosen_item == "Auto" and transaction_is_credit:
-                    self.webdriver.click_element(transaction_element)
-                    self.transaction_ops.auto_allocate()
+                    self.allocate_charge(transaction_element, URL, prepaid)
 
             if operation == "credit_all_charges":
                 if transaction_is_credit:
-                    idx += 1
-                    continue
-                self.webdriver.click_element(
-                    self.webdriver.return_last_element("Add Credit")
-                )
-                self.credit_ops.credit_charge(chosen_item)
+                    self.credit_all_charges(chosen_item)
 
             if operation == "delete_charges":
-                if chosen_item == "All" or "Except Metered":
+                if chosen_item == "All" or chosen_item == "Except Metered":
                     if transaction_is_credit or (
                         chosen_item == "Except Metered" and transaction_is_metered
                     ):
                         idx += 1
                         continue
-                    self.webdriver.click_element(transaction_element)
-                    self.transaction_ops.delete_charge()
-                    idx -= 1
+                    idx += 1
+                    self.delete_charge(transaction_element)
                     continue
-                if chosen_item == "Late Fees" and (
-                    "Late" in transaction or transaction in "Late"
-                ):
-                    self.webdriver.click_element(transaction_element)
-                    self.transaction_ops.delete_charge()
-                    idx -= 1
+                if chosen_item == "Late Fees" and "late" in transaction.lower():
+                    self.delete_charge(transaction_element)
                     continue
 
             idx += 1

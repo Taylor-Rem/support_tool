@@ -167,7 +167,7 @@ class LedgerOps(HelperWidget):
             "🟢 Allocate All",
             "Choose How",
             "Type",
-            ["Auto", "Manual"],
+            ["Auto", "Charges"],
             "allocate_all",
         )
         self.unallocate_all_btn = self.create_configured_button(

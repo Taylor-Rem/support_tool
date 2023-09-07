@@ -39,6 +39,7 @@ class RedstarMaster(RedstarFunctions):
         super().__init__(webdriver, thread_helper)
 
     def run_autostar(self):
+        months = [-5, -4]
         for URL in self.URLs:
             if self.is_cancelled():
                 print("operation_cancelled")
@@ -46,11 +47,19 @@ class RedstarMaster(RedstarFunctions):
             self.webdriver.driver.get(URL)
             if not self.webdriver.element_exists(By.XPATH, '//td//font[@color="red"]'):
                 continue
-
-            self.loop_through_table("unallocate_all", "Charges", is_autostar=True)
-            self.loop_through_table("unallocate_all", "Credits", is_autostar=True)
-            self.loop_through_table("allocate_all", "Manual", is_autostar=True)
-            self.loop_through_table("allocate_all", "Auto", is_autostar=True)
+            for month in months:
+                self.loop_through_table(
+                    "unallocate_all", "Charges", is_autostar=True, chosen_month=month
+                )
+                self.loop_through_table(
+                    "unallocate_all", "Credits", is_autostar=True, chosen_month=month
+                )
+                self.loop_through_table(
+                    "allocate_all", "Charges", is_autostar=True, chosen_month=month
+                )
+                self.loop_through_table(
+                    "allocate_all", "Auto", is_autostar=True, chosen_month=month
+                )
 
     def is_cancelled(self):
         if self.thread_helper:
