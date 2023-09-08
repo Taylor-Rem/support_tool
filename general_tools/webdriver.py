@@ -180,15 +180,9 @@ class WebdriverResmapOperations(WebDriverBase):
         except:
             return False
 
-    def define_table(self, by, value):
-        return self.driver.find_elements(by, value)
-
-    def get_rows(self, table):
-        all_rows = []  # Initialize an empty list to collect all rows
-        for table_element in table:
-            rows = table_element.find_elements(By.TAG_NAME, "tr")
-            all_rows.extend(rows)  # Add rows to the list
-        return all_rows  # Return the list of all rows
+    def get_rows(self, value):
+        table = self.find_element(By.XPATH, value)
+        return table.find_elements(By.XPATH, ".//tr")
 
 
 class WebdriverOperations(

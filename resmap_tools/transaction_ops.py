@@ -6,6 +6,7 @@ from selenium.webdriver.common.keys import Keys
 class TransactionScrape:
     def __init__(self, webdriver):
         self.webdriver = webdriver
+        self.base_xpath = "/html/body/table[2]/tbody/tr[4]/td/table/tbody/tr/td/"
 
     def scrape_total(self):
         total_amount = self.webdriver.find_element(
@@ -13,6 +14,13 @@ class TransactionScrape:
             '//tr[td[@class="td2" and text()="Amount"]]/td[@class="td2"]/input[@name="amount"]',
         )
         return float(total_amount.get_attribute("value"))
+
+    def scrape_credit_amount(self):
+        credit_amount = self.webdriver.find_element(
+            By.XPATH,
+            f"{self.base_xpath}form/table[1]/tbody/tr[2]/td/table/tbody/tr[5]/td[2]/input",
+        )
+        return float(credit_amount.get_attribute("value"))
 
 
 class TransactionFunctions(TransactionScrape):
@@ -47,12 +55,11 @@ class TransactionMaster(TransactionFunctions):
         idx = 0
         while True:
             table_identifier = (
-                "/html/body/table[2]/tbody/tr[4]/td/table/tbody/tr/td/table[2]/tbody/tr[2]/td/table/tbody"
-                if operation == "Charges"
-                else "/html/body/table[2]/tbody/tr[4]/td/table/tbody/tr/td/form/table[2]/tbody/tr[2]/td/table/tbody"
+                f"{self.base_xpath}table[2]/tbody/tr[2]/td/table/tbody"
+                if "charge" in operation.lower()
+                else f"{self.base_xpath}form/table[2]/tbody/tr[2]/td/table/tbody"
             )
-            table = self.webdriver.find_element(By.XPATH, table_identifier)
-            rows = table.find_elements(By.XPATH, ".//tr")
+            rows = self.webdriver.get_rows(table_identifier)
 
             if idx >= len(rows):
                 break
@@ -78,6 +85,13 @@ class TransactionMaster(TransactionFunctions):
                 if press_enter:
                     break
 
+            # if operation == "allocate_credit":
+            #     credit_amount = self.scrape_credit_amount()
+            #     cells = row.find_elements(By.TAG_NAME, "td")
+            #     bill_amount = self.webdriver.get_number_from_inner_html(cells[2].text)
+            #     if bill_amount == credit_amount:
+            #         self.webdriver.get_keys(input_element, bill_amount, True)
+
             if operation == "allocate_charge":
                 if value != 0:
                     idx += 1
@@ -87,4 +101,5 @@ class TransactionMaster(TransactionFunctions):
                 key = amount_to_allocate if amount_to_allocate < prepaid else prepaid
                 self.webdriver.send_keys_to_element(input_element, key, True)
                 break
-        self.webdriver.driver.get(URL)
+        if self.webdriver.driver.current_url != URL:
+            self.webdriver.driver.get(URL)

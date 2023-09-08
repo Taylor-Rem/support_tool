@@ -30,6 +30,7 @@ class TicketWindow(HelperWidget):
         self.resolve_btn = self.create_button(
             "✅ Resolve", lambda: (self.change_ticket_status(self.icons["Resolved"]))
         )
+        self.ledger_tools_btn = self.create_button("Ledger Tools", self.ledger_tools)
         self.add_back_btn()
 
     def open_tickets(self):
@@ -38,6 +39,9 @@ class TicketWindow(HelperWidget):
 
     def change_ticket_status(self, icon, back=None):
         self.ticket_master.change_ticket_status(icon, back)
+
+    def ledger_tools(self):
+        self.main_app.switch_window(self.main_app.ledger_tools)
 
 
 class ReportWindow(HelperWidget):
@@ -67,12 +71,16 @@ class ReportOpsWindow(LedgerOps):
         if report is not None:
             self.report_master = ReportMaster(main_app.webdriver, report)
             self.complete_btn = self.create_button(
-                "✅ Add", lambda: self.report_master.ledger_cycle(True)
+                "✅ Add", lambda: self.cycle_ledger(True)
             )
             self.skip_btn = self.create_button(
-                "⛔️ Skip", self.report_master.ledger_cycle
+                "⛔️ Skip", lambda: self.cycle_ledger(False)
             )
             self.add_back_btn()
+
+    def cycle_ledger(self, add):
+        self.report_master.ledger_cycle(add)
+        self.refresh_former_dropdown()
 
 
 class RedstarWindow(HelperWidget):

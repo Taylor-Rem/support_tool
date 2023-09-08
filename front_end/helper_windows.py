@@ -150,24 +150,34 @@ class LedgerOps(HelperWidget):
         super().__init__(main_app, title)
         self.ledger_master = LedgerMaster(main_app.webdriver)
 
-        self.selected_month = -4
+        self.selected_month = "current"
 
         self.create_ledger_widgets()
 
     def create_ledger_widgets(self):
-        self.create_dropdown(["Current Month", "Previous Month"], self.dropdown_changed)
+        self.current_former_dropdown = self.create_dropdown(
+            ["Current", "Former"],
+            self.current_former_dropdown_change,
+            current_index=0 if self.check_if_current() else 1,
+        )
+        self.choose_month_dropdown = self.create_dropdown(
+            ["Current Month", "Previous Month"], self.change_month_dropdown_change
+        )
         self.create_ledger_buttons()
 
-    def dropdown_changed(self, index):
-        print(index)
-        self.selected_month = -4 if index == 0 else -5
+    def change_month_dropdown_change(self, index):
+        self.selected_month = "current" if index == 0 else "previous"
+
+    def current_former_dropdown_change(self):
+        chosen_item = self.current_former_dropdown.currentText()
+        self.click_button("change_ledger", chosen_item)
 
     def create_ledger_buttons(self):
-        self.unallocate_all_btn = self.create_configured_button(
+        self.allocate_all_btn = self.create_configured_button(
             "🟢 Allocate All",
             "Choose How",
             "Type",
-            ["Auto", "Charges"],
+            ["Credits", "Charges"],
             "allocate_all",
         )
         self.unallocate_all_btn = self.create_configured_button(
@@ -190,13 +200,6 @@ class LedgerOps(HelperWidget):
             "Type",
             ["All", "Except Metered", "Late Fees"],
             "delete_charges",
-        )
-        self.change_ledger_btn = self.create_configured_button(
-            "🟡 Go to Former/Current",
-            "Choose Resident",
-            "Resident",
-            ["Former", "Current"],
-            "change_ledger",
         )
 
     def click_button(self, operation, chosen_item=None):
@@ -222,6 +225,13 @@ class LedgerOps(HelperWidget):
         self.thread_helper.reset()
         self.thread_helper.start()
 
+    def refresh_former_dropdown(self):
+        current_index = 0 if self.check_if_current() else 1
+        self.current_former_dropdown.setCurrentIndex(current_index)
+
     def choose_values(self, title, label, items, operation):
         chosen_item = self.choose_between_values(title, label, items)
         self.click_button(operation, chosen_item)
+
+    def check_if_current(self):
+        return "present" in self.ledger_master.scrape_dates().lower()

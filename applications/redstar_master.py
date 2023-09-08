@@ -38,8 +38,26 @@ class RedstarMaster(RedstarFunctions):
     def __init__(self, webdriver, thread_helper=None):
         super().__init__(webdriver, thread_helper)
 
+    def auto_star_operations(self, month):
+        self.loop_through_table(
+            "allocate_all", "Credits", is_autostar=True, chosen_month=month
+        )
+        if not self.webdriver.element_exists(By.XPATH, '//td//font[@color="red"]'):
+            return
+        self.loop_through_table(
+            "unallocate_all", "Charges", is_autostar=True, chosen_month=month
+        )
+        self.loop_through_table(
+            "unallocate_all", "Credits", is_autostar=True, chosen_month=month
+        )
+        self.loop_through_table(
+            "allocate_all", "Charges", is_autostar=True, chosen_month=month
+        )
+        self.loop_through_table(
+            "allocate_all", "Auto", is_autostar=True, chosen_month=month
+        )
+
     def run_autostar(self):
-        months = [-5, -4]
         for URL in self.URLs:
             if self.is_cancelled():
                 print("operation_cancelled")
@@ -47,19 +65,11 @@ class RedstarMaster(RedstarFunctions):
             self.webdriver.driver.get(URL)
             if not self.webdriver.element_exists(By.XPATH, '//td//font[@color="red"]'):
                 continue
-            for month in months:
-                self.loop_through_table(
-                    "unallocate_all", "Charges", is_autostar=True, chosen_month=month
-                )
-                self.loop_through_table(
-                    "unallocate_all", "Credits", is_autostar=True, chosen_month=month
-                )
-                self.loop_through_table(
-                    "allocate_all", "Charges", is_autostar=True, chosen_month=month
-                )
-                self.loop_through_table(
-                    "allocate_all", "Auto", is_autostar=True, chosen_month=month
-                )
+            self.auto_star_operations(-4)
+            if not self.webdriver.element_exists(By.XPATH, '//td//font[@color="red"]'):
+                continue
+            self.auto_star_operations(-5)
+            self.auto_star_operations(-4)
 
     def is_cancelled(self):
         if self.thread_helper:
