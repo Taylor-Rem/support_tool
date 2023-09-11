@@ -201,6 +201,9 @@ class LedgerOps(HelperWidget):
             ["All", "Except Metered", "Late Fees"],
             "delete_charges",
         )
+        self.fix_nsf_button = self.create_button(
+            "Fix NSF", partial(self.ledger_master.loop_through_table, "fix_nsf")
+        )
 
     def click_button(self, operation, chosen_item=None):
         if chosen_item:
@@ -210,7 +213,7 @@ class LedgerOps(HelperWidget):
                 func = partial(
                     self.ledger_master.loop_through_table,
                     operation,
-                    chosen_item,
+                    chosen_item.lower(),
                     chosen_month=self.selected_month,
                 )
         else:

@@ -123,6 +123,13 @@ class LedgerMaster(LedgerFunctions):
         except:
             self.webdriver.driver.get(self.URL)
 
+    def nsf_functions(self, transaction_element, operation):
+        self.webdriver.click_element(transaction_element)
+        if operation == "bounced_nsf_payment":
+            self.nsf_info = self.transaction_ops.loop(operation, self.URL)
+        if operation == "allocate_nsf_charge":
+            self.transaction_ops.loop(operation, self.URL, nsf_info=self.nsf_info)
+
     def loop_through_table(
         self,
         operation,
@@ -136,7 +143,10 @@ class LedgerMaster(LedgerFunctions):
         has_late_credit = False
         contains_nsf = False
         if not reloop:
-            rows = self.webdriver.get_rows(table_xpath)
+            try:
+                rows = self.webdriver.get_rows(table_xpath)
+            except:
+                return
             for row in rows:
                 if self.webdriver.skip_row(row, "th3"):
                     continue
@@ -146,12 +156,12 @@ class LedgerMaster(LedgerFunctions):
                 if "nsf" in transaction.lower():
                     contains_nsf = True
 
-        if has_late_credit and chosen_item != "Late Fees":
+        if has_late_credit and chosen_item != "late Fees":
             self.loop_through_table(
-                "delete_charges", "Late Fees", chosen_month=chosen_month, reloop=True
+                "delete_charges", "late Fees", chosen_month=chosen_month, reloop=True
             )
         if contains_nsf and is_autostar:
-            return
+            return "nsf"
 
         idx = 0
 
@@ -175,40 +185,49 @@ class LedgerMaster(LedgerFunctions):
 
             transaction, amount = self.get_transaction_and_amount(row)
 
-            transaction_is_nsf = "nsf" in transaction.lower()
-            if transaction_is_nsf:
-                idx += 1
-                continue
-
-            if "system" in transaction.lower():
-                transaction = "System"
             if "rule compliance" in transaction.lower():
                 transaction = "Rule Compliance"
 
-            try:
-                transaction_element = row.find_element(
-                    By.XPATH, f".//a[contains(text(), '{transaction}')]"
-                )
-            except:
-                idx += 1
-                continue
+            while True:
+                trans_idx = 0
+                try:
+                    transaction_element = row.find_element(
+                        By.XPATH,
+                        f".//a[contains(text(), '{transaction[: trans_idx]}')]",
+                    )
+                    break
+                except:
+                    if trans_idx == -len(transaction):
+                        idx += 1
+                        continue
+                    trans_idx -= 1
 
             transaction_is_payment = self.is_payment(amount)
             transaction_is_credit = (
                 "credit" in transaction.lower() or "concession" in transaction.lower()
             )
             transaction_is_metered = self.is_metered(row)
+            transaction_is_nsf = "(nsf" in transaction.lower()
+            if operation == "fix_nsf":
+                if transaction_is_nsf and transaction_is_payment:
+                    self.nsf_functions(transaction_element, "bounced_nsf_payment")
+                if transaction_is_nsf and not transaction_is_payment:
+                    self.nsf_functions(transaction_element, "allocate_nsf_charge")
+
+            if transaction_is_nsf:
+                idx += 1
+                continue
 
             if operation == "unallocate_all":
                 if (
-                    (chosen_item == "Charges" and not transaction_is_payment)
-                    or (chosen_item == "Credits" and transaction_is_payment)
+                    (chosen_item == "charges" and not transaction_is_payment)
+                    or (chosen_item == "credits" and transaction_is_payment)
                 ) and not transaction_is_credit:
                     self.unallocate_all(transaction_element, chosen_item)
 
             if operation == "allocate_all":
                 if (
-                    chosen_item == "Credits"
+                    chosen_item == "credits"
                     and transaction_is_payment
                     and not transaction_is_credit
                 ):
@@ -218,7 +237,7 @@ class LedgerMaster(LedgerFunctions):
 
                 prepaid, prepaid_is_credit = self.scrape_prepaid()
                 if (
-                    (chosen_item == "Charges")
+                    (chosen_item == "charges")
                     and (not transaction_is_payment)
                     and (prepaid != 0)
                     and (prepaid_is_credit)
@@ -234,15 +253,15 @@ class LedgerMaster(LedgerFunctions):
                         break
 
             if operation == "delete_charges":
-                if chosen_item == "All" or chosen_item == "Except Metered":
+                if chosen_item == "all" or chosen_item == "except metered":
                     if transaction_is_payment or (
-                        chosen_item == "Except Metered" and transaction_is_metered
+                        chosen_item == "except metered" and transaction_is_metered
                     ):
                         idx += 1
                         continue
                     self.delete_charge(transaction_element)
                     continue
-                if chosen_item == "Late Fees" and "late" in transaction.lower():
+                if chosen_item == "late fees" and "late" in transaction.lower():
                     self.delete_charge(transaction_element)
                     continue
 
