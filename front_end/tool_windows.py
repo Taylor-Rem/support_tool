@@ -4,6 +4,8 @@ from applications.ticket_master import TicketMaster
 from applications.report_master import ReportMaster
 from applications.redstar_master import RedstarMaster
 
+from functools import partial
+
 
 class LedgerTools(LedgerOps):
     def __init__(self, main_app):
@@ -18,17 +20,25 @@ class TicketWindow(HelperWidget):
         self.icons = {
             "In Progress": "scatter_plot",
             "Resolved": "done_outline",
+            "Unresolved": "error",
             "Back": "arrow_back",
         }
         self.open_btn = self.create_button("🤖 Open Ticket", self.open_tickets)
+        self.resolve_btn = self.create_button(
+            "✅ Resolve",
+            partial(self.change_ticket_status, self.icons["Resolved"]),
+        )
         self.in_progress_btn = self.create_button(
             "🔵 In Progress",
-            lambda: (
-                self.change_ticket_status(self.icons["In Progress"], self.icons["Back"])
+            partial(
+                self.change_ticket_status, self.icons["In Progress"], self.icons["Back"]
             ),
         )
-        self.resolve_btn = self.create_button(
-            "✅ Resolve", lambda: (self.change_ticket_status(self.icons["Resolved"]))
+        self.unresolved_btn = self.create_button(
+            "🟥 Unresolved",
+            partial(
+                self.change_ticket_status, self.icons["Unresolved"], self.icons["Back"]
+            ),
         )
         self.ledger_tools_btn = self.create_button("Ledger Tools", self.ledger_tools)
         self.add_back_btn()

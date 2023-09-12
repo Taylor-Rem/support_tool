@@ -57,7 +57,7 @@ class NavToLedgerOps(NavToLedgerScrape):
             self.click_ledger(unit, resident)
         else:
             RM_unit = self.scrape_unit(unit)
-            if RM_unit:
+            if RM_unit or RM_unit != "":
                 self.open_former_ledger(RM_unit, resident)
             else:
                 self.search_resident_and_open_ledger(resident)

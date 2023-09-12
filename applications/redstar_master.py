@@ -40,7 +40,9 @@ class RedstarMaster(RedstarFunctions):
 
     def nsf_in_month(self, chosen_month):
         return (
-            self.loop_through_table(None, is_autostar=True, chosen_month=chosen_month)
+            self.loop_through_table(
+                "check_nsf", is_autostar=True, chosen_month=chosen_month
+            )
             == "nsf"
         )
 
@@ -49,21 +51,21 @@ class RedstarMaster(RedstarFunctions):
 
     def auto_star_operations(self, month):
         self.loop_through_table(
-            "allocate_all", "Credits", is_autostar=True, chosen_month=month
+            "allocate_all", "credits", is_autostar=True, chosen_month=month
         )
         if not self.ledger_has_redstar():
             return
         self.loop_through_table(
-            "unallocate_all", "Charges", is_autostar=True, chosen_month=month
+            "unallocate_all", "charges", is_autostar=True, chosen_month=month
         )
         self.loop_through_table(
-            "unallocate_all", "Credits", is_autostar=True, chosen_month=month
+            "unallocate_all", "credits", is_autostar=True, chosen_month=month
         )
         self.loop_through_table(
-            "allocate_all", "Charges", is_autostar=True, chosen_month=month
+            "allocate_all", "charges", is_autostar=True, chosen_month=month
         )
         self.loop_through_table(
-            "allocate_all", "Auto", is_autostar=True, chosen_month=month
+            "allocate_all", "credits", is_autostar=True, chosen_month=month
         )
 
     def run_autostar(self):
@@ -74,9 +76,7 @@ class RedstarMaster(RedstarFunctions):
             self.webdriver.driver.get(URL)
             if not self.ledger_has_redstar():
                 continue
-            if self.nsf_in_month("current"):
-                self.loop_through_table("fix_nsf")
-                self.auto_star_operations("current")
+            self.auto_star_operations("current")
             if self.ledger_has_redstar():
                 continue
             self.auto_star_operations("previous")

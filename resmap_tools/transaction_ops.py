@@ -64,7 +64,8 @@ class TransactionMaster(TransactionFunctions):
 
     def loop(self, operation, URL, prepaid=None, nsf_info=None):
         idx = 0
-        nsf_total = self.scrape_total_from_nsf()
+        nsf_amount_to_allocate = self.scrape_total_from_nsf()
+        already_allocated = 0
         allocation_names = []
         bill_amounts = []
         while True:
@@ -73,7 +74,7 @@ class TransactionMaster(TransactionFunctions):
                 "allocate_charge": f"{self.base_xpath}table[2]/tbody/tr[2]/td/table/tbody",
                 "credits": f"{self.base_xpath}form/table[2]/tbody/tr[2]/td/table/tbody",
                 "bounced_nsf_payment": f"{self.base_xpath}form/table[2]/tbody/tr[2]/td/table/tbody",
-                "allocate_nsf_charge": f"{self.base_xpath}form/table[2]/tbody",
+                "allocate_nsf_charge": f"{self.base_xpath}form/table[2]/tbody/tr[2]/td/table/tbody",
             }
 
             rows = self.webdriver.get_rows(table_identifier[operation])
@@ -103,16 +104,47 @@ class TransactionMaster(TransactionFunctions):
                 if finished_list:
                     break
 
+            # if operation == "allocate_credit":
+            #     credit_amount = self.scrape_credit_amount()
+            #     cells = row.find_elements(By.TAG_NAME, "td")
+            #     bill_amount = self.webdriver.get_number_from_inner_html(cells[2].text)
+            #     if bill_amount == credit_amount:
+            #         self.webdriver.get_keys(input_element, bill_amount, True)
+
+            if operation == "allocate_charge":
+                if value != 0:
+                    idx += 1
+                    already_allocated += value
+                    continue
+                total_amount = self.scrape_total()
+                amount_to_allocate = round(total_amount - already_allocated, 2)
+                key = amount_to_allocate if amount_to_allocate < prepaid else prepaid
+
+                self.webdriver.send_keys_to_element(input_element, key, True)
+                break
+
             if operation == "bounced_nsf_payment":
                 cells = row.find_elements(By.TAG_NAME, "td")
-
-                allocation_name = cells[0].text
                 bill_amount = self.webdriver.get_number_from_inner_html(cells[2].text)
-                if "(nsf)" in allocation_name.lower():
+                allocation_name = cells[0].text
+
+                if (
+                    "nsf" in allocation_name.lower()
+                    or "late" in allocation_name.lower()
+                ):
                     self.clear_element(input_element, finished_list)
+                    if finished_list:
+                        return [allocation_names, bill_amounts]
                     idx += 1
                     continue
-                key = bill_amount if nsf_total >= bill_amount else nsf_total
+
+                print(nsf_amount_to_allocate)
+                key = (
+                    bill_amount
+                    if nsf_amount_to_allocate >= bill_amount
+                    else nsf_amount_to_allocate
+                )
+                nsf_amount_to_allocate = round(nsf_amount_to_allocate - bill_amount, 2)
 
                 """clear the input using javascript so it remains in focus"""
                 self.webdriver.driver.execute_script(
@@ -123,21 +155,27 @@ class TransactionMaster(TransactionFunctions):
                 )
 
                 input_element.send_keys(key)
+                allocation_names.append(allocation_name)
+                bill_amounts.append(key)
+
                 if finished_list:
                     input_element.send_keys(Keys.ENTER)
-                nsf_total = round(nsf_total - bill_amount, 2)
-                allocation_names.append(allocation_name)
-                bill_amounts.append(bill_amount)
-
-                idx += 1
-                if finished_list:
                     return [allocation_names, bill_amounts]
+                idx += 1
 
             if operation == "allocate_nsf_charge":
                 imported_allocation_names = nsf_info[0]
                 imported_bill_amounts = nsf_info[1]
-                imported_allocation_name = imported_allocation_names[idx]
-                imported_bill_amount = imported_bill_amounts[idx]
+                finished_allocating = idx >= len(imported_allocation_names) + 1
+                if finished_allocating:
+                    self.clear_element(input_element, finished_list)
+                    if finished_list:
+                        return
+                    idx += 1
+                    continue
+                print(idx)
+                imported_allocation_name = imported_allocation_names[idx - 1]
+                imported_bill_amount = imported_bill_amounts[idx - 1]
                 cells = row.find_elements(By.TAG_NAME, "td")
                 dropdown = cells[0].find_element(By.TAG_NAME, "select")
                 select = Select(dropdown)
@@ -152,25 +190,6 @@ class TransactionMaster(TransactionFunctions):
                 )
                 input_element.send_keys(imported_bill_amount)
                 idx += 1
-                if idx >= len(imported_allocation_names):
-                    input_element.send_keys(Keys.ENTER)
-                    return
 
-            # if operation == "allocate_credit":
-            #     credit_amount = self.scrape_credit_amount()
-            #     cells = row.find_elements(By.TAG_NAME, "td")
-            #     bill_amount = self.webdriver.get_number_from_inner_html(cells[2].text)
-            #     if bill_amount == credit_amount:
-            #         self.webdriver.get_keys(input_element, bill_amount, True)
-
-            if operation == "allocate_charge":
-                if value != 0:
-                    idx += 1
-                    continue
-                total_amount = self.scrape_total()
-                amount_to_allocate = round(total_amount - value, 2)
-                key = amount_to_allocate if amount_to_allocate < prepaid else prepaid
-                self.webdriver.send_keys_to_element(input_element, key, True)
-                break
         if self.webdriver.driver.current_url != URL:
             self.webdriver.driver.get(URL)

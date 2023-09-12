@@ -81,7 +81,10 @@ class WebElementOperations(WebDriverBase):
             print(f"Error: {e}")
 
     def is_element_clickable(self, element):
-        is_clickable = element.is_displayed() and element.is_enabled()
+        try:
+            is_clickable = element.is_displayed() and element.is_enabled()
+        except AttributeError:
+            return False
         return element and is_clickable
 
     def scroll_to_element(self, element):

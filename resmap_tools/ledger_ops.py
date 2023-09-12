@@ -118,10 +118,7 @@ class LedgerMaster(LedgerFunctions):
         self.webdriver.click_element(transaction_element)
         if self.cancelled_true():
             return
-        try:
-            self.transaction_ops.loop(operation, self.URL)
-        except:
-            self.webdriver.driver.get(self.URL)
+        self.transaction_ops.loop(operation, self.URL)
 
     def nsf_functions(self, transaction_element, operation):
         self.webdriver.click_element(transaction_element)
@@ -158,9 +155,9 @@ class LedgerMaster(LedgerFunctions):
 
         if has_late_credit and chosen_item != "late Fees":
             self.loop_through_table(
-                "delete_charges", "late Fees", chosen_month=chosen_month, reloop=True
+                "delete_charges", "late fees", chosen_month=chosen_month, reloop=True
             )
-        if contains_nsf and is_autostar:
+        if contains_nsf and operation == "check_nsf":
             return "nsf"
 
         idx = 0
@@ -185,9 +182,6 @@ class LedgerMaster(LedgerFunctions):
 
             transaction, amount = self.get_transaction_and_amount(row)
 
-            if "rule compliance" in transaction.lower():
-                transaction = "Rule Compliance"
-
             while True:
                 trans_idx = 0
                 try:
@@ -206,7 +200,11 @@ class LedgerMaster(LedgerFunctions):
             transaction_is_credit = (
                 "credit" in transaction.lower() or "concession" in transaction.lower()
             )
+            if "rule compliance" in transaction.lower():
+                transaction_is_credit = False
+            transaction_is_late_fee = "late" in transaction.lower()
             transaction_is_metered = self.is_metered(row)
+
             transaction_is_nsf = "(nsf" in transaction.lower()
             if operation == "fix_nsf":
                 if transaction_is_nsf and transaction_is_payment:
@@ -253,15 +251,13 @@ class LedgerMaster(LedgerFunctions):
                         break
 
             if operation == "delete_charges":
-                if chosen_item == "all" or chosen_item == "except metered":
-                    if transaction_is_payment or (
-                        chosen_item == "except metered" and transaction_is_metered
-                    ):
-                        idx += 1
-                        continue
-                    self.delete_charge(transaction_element)
-                    continue
-                if chosen_item == "late fees" and "late" in transaction.lower():
+                if (
+                    (chosen_item == "all")
+                    or (chosen_item == "charges" and not transaction_is_payment)
+                    or (chosen_item == "credits" and transaction_is_payment)
+                    or (chosen_item == "except metered" and not transaction_is_metered)
+                    or (chosen_item == "late fees" and transaction_is_late_fee)
+                ):
                     self.delete_charge(transaction_element)
                     continue
 

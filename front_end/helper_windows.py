@@ -195,10 +195,10 @@ class LedgerOps(HelperWidget):
             "credit_all_charges",
         )
         self.delete_charges_btn = self.create_configured_button(
-            "🔴 Delete Charges",
-            "Select Charges",
+            "🔴 Delete All",
+            "Transaction to Delete",
             "Type",
-            ["All", "Except Metered", "Late Fees"],
+            ["All", "Charges", "Credits", "Except Metered", "Late Fees"],
             "delete_charges",
         )
         self.fix_nsf_button = self.create_button(
