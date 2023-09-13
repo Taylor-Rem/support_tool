@@ -3,6 +3,8 @@ from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import Select
 
+from general_tools.os_ops import OSBase
+
 
 class TransactionScrape:
     def __init__(self, webdriver):
@@ -17,14 +19,14 @@ class TransactionScrape:
         return float(total_amount.get_attribute("value"))
 
     def scrape_total_from_nsf(self):
-        try:
-            total_amount = self.webdriver.find_element(
-                By.XPATH,
-                f"{self.base_xpath}form/table[1]/tbody/tr[2]/td/table/tbody/tr[4]/td[2]",
-            )
-            return self.webdriver.get_number_from_inner_html(total_amount.text)
-        except NoSuchElementException:
-            return None
+        total_amount_element = self.webdriver.find_element(By.ID, "paymentTotal")
+        if total_amount_element is not None:
+            if total_amount_element.tag_name == "input":
+                return float(total_amount_element.get_attribute("value"))
+            else:
+                return self.webdriver.get_number_from_inner_html(
+                    total_amount_element.text
+                )
 
     def scrape_credit_amount(self):
         credit_amount = self.webdriver.find_element(
@@ -75,6 +77,7 @@ class TransactionMaster(TransactionFunctions):
                 "credits": f"{self.base_xpath}form/table[2]/tbody/tr[2]/td/table/tbody",
                 "bounced_nsf_payment": f"{self.base_xpath}form/table[2]/tbody/tr[2]/td/table/tbody",
                 "allocate_nsf_charge": f"{self.base_xpath}form/table[2]/tbody/tr[2]/td/table/tbody",
+                "unallocate_nsf_charge": f"{self.base_xpath}form/table[2]/tbody/tr[2]/td/table/tbody",
             }
 
             rows = self.webdriver.get_rows(table_identifier[operation])
@@ -117,6 +120,8 @@ class TransactionMaster(TransactionFunctions):
                     already_allocated += value
                     continue
                 total_amount = self.scrape_total()
+                if total_amount == already_allocated:
+                    break
                 amount_to_allocate = round(total_amount - already_allocated, 2)
                 key = amount_to_allocate if amount_to_allocate < prepaid else prepaid
 
@@ -125,12 +130,17 @@ class TransactionMaster(TransactionFunctions):
 
             if operation == "bounced_nsf_payment":
                 cells = row.find_elements(By.TAG_NAME, "td")
-                bill_amount = self.webdriver.get_number_from_inner_html(cells[2].text)
                 allocation_name = cells[0].text
+                date = cells[1].text
+                month = float(date.split("/")[0])
+                os_month = float(OSBase().month)
+                transaction_from_current_month = month == os_month
+                bill_amount = self.webdriver.get_number_from_inner_html(cells[2].text)
 
                 if (
-                    "nsf" in allocation_name.lower()
-                    or "late" in allocation_name.lower()
+                    "(nsf)" in allocation_name.lower()
+                    and transaction_from_current_month
+                    # or "late" in allocation_name.lower()
                 ):
                     self.clear_element(input_element, finished_list)
                     if finished_list:
@@ -138,13 +148,14 @@ class TransactionMaster(TransactionFunctions):
                     idx += 1
                     continue
 
-                print(nsf_amount_to_allocate)
                 key = (
                     bill_amount
                     if nsf_amount_to_allocate >= bill_amount
                     else nsf_amount_to_allocate
                 )
-                nsf_amount_to_allocate = round(nsf_amount_to_allocate - bill_amount, 2)
+                nsf_amount_to_allocate = max(
+                    0, round(nsf_amount_to_allocate - bill_amount, 2)
+                )
 
                 """clear the input using javascript so it remains in focus"""
                 self.webdriver.driver.execute_script(
@@ -155,6 +166,8 @@ class TransactionMaster(TransactionFunctions):
                 )
 
                 input_element.send_keys(key)
+                if "(nsf)" in allocation_name.lower():
+                    allocation_name = allocation_name.replace(" (NSF)", "")
                 allocation_names.append(allocation_name)
                 bill_amounts.append(key)
 
@@ -167,13 +180,13 @@ class TransactionMaster(TransactionFunctions):
                 imported_allocation_names = nsf_info[0]
                 imported_bill_amounts = nsf_info[1]
                 finished_allocating = idx >= len(imported_allocation_names) + 1
+                if finished_list:
+                    self.clear_element(input_element, finished_list)
+                    return
                 if finished_allocating:
                     self.clear_element(input_element, finished_list)
-                    if finished_list:
-                        return
                     idx += 1
                     continue
-                print(idx)
                 imported_allocation_name = imported_allocation_names[idx - 1]
                 imported_bill_amount = imported_bill_amounts[idx - 1]
                 cells = row.find_elements(By.TAG_NAME, "td")

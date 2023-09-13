@@ -24,6 +24,8 @@ class RedstarFunctions(RedstarBase, LedgerMaster):
         self.current_index = (
             self.current_index + 1 if operation == "next" else self.current_index - 1
         )
+        if self.current_index >= len(self.URLs):
+            return
         self.open_redstar_ledger()
 
     def open_redstar_ledger(self):
@@ -37,17 +39,6 @@ class RedstarFunctions(RedstarBase, LedgerMaster):
 class RedstarMaster(RedstarFunctions):
     def __init__(self, webdriver, thread_helper=None):
         super().__init__(webdriver, thread_helper)
-
-    def nsf_in_month(self, chosen_month):
-        return (
-            self.loop_through_table(
-                "check_nsf", is_autostar=True, chosen_month=chosen_month
-            )
-            == "nsf"
-        )
-
-    def ledger_has_redstar(self):
-        return self.webdriver.element_exists(By.XPATH, '//td//font[@color="red"]')
 
     def auto_star_operations(self, month):
         self.loop_through_table(
@@ -69,18 +60,20 @@ class RedstarMaster(RedstarFunctions):
         )
 
     def run_autostar(self):
+        choose_month = ["current", "previous"]
         for URL in self.URLs:
             if self.is_cancelled():
                 print("operation_cancelled")
                 break
             self.webdriver.driver.get(URL)
-            if not self.ledger_has_redstar():
-                continue
-            self.auto_star_operations("current")
-            if self.ledger_has_redstar():
-                continue
-            self.auto_star_operations("previous")
-            self.auto_star_operations("current")
+            for month in choose_month:
+                if not self.ledger_has_redstar():
+                    break
+                if self.fix_nsf(month):
+                    break
+                if not self.ledger_has_redstar():
+                    break
+                self.auto_star_operations(month)
 
     def is_cancelled(self):
         if self.thread_helper:

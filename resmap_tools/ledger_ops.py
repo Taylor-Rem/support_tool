@@ -14,6 +14,11 @@ class LedgerScrape:
             "previous": f"{self.base_xpath}[last()-5]/tbody/tr[2]/td/table/tbody",
         }
 
+    def ledger_has_redstar(self):
+        return self.webdriver.element_exists(
+            By.XPATH, '//td//font[@color="red" and text()="*"]'
+        )
+
     def get_URL(self):
         return self.webdriver.driver.current_url
 
@@ -69,7 +74,7 @@ class LedgerFunctions(LedgerScrape):
     def change_ledger(self, chosen_item):
         URL = self.get_URL()
         unit = self.scrape_unit()
-        if chosen_item == "Current":
+        if chosen_item == "Current Resident":
             self.webdriver.click_element(unit)
             try:
                 self.nav_to_ledger.click_ledger()
@@ -77,12 +82,6 @@ class LedgerFunctions(LedgerScrape):
                 self.webdriver.driver.get(URL)
         else:
             self.nav_to_ledger.open_former_ledger(unit, None, URL)
-
-
-class LedgerMaster(LedgerFunctions):
-    def __init__(self, webdriver, thread_helper=None):
-        super().__init__(webdriver)
-        self.thread_helper = thread_helper
 
     def delete_charge(self, transaction_element):
         self.webdriver.click_element(transaction_element)
@@ -127,6 +126,34 @@ class LedgerMaster(LedgerFunctions):
         if operation == "allocate_nsf_charge":
             self.transaction_ops.loop(operation, self.URL, nsf_info=self.nsf_info)
 
+
+class LedgerMaster(LedgerFunctions):
+    def __init__(self, webdriver, thread_helper=None):
+        super().__init__(webdriver)
+        self.thread_helper = thread_helper
+
+    def pre_loop(self, chosen_month, operation=None):
+        table_xpath = self.choose_table[chosen_month]
+        has_late_credit = False
+        has_nsf = False
+        rows = self.webdriver.get_rows(table_xpath)
+        for row in rows:
+            if self.webdriver.skip_row(row, "th3"):
+                continue
+            transaction, amount = self.get_transaction_and_amount(row)
+            if "late fee credit" in transaction.lower():
+                has_late_credit = True
+            if "nsf" in transaction.lower():
+                has_nsf = True
+
+        if has_late_credit and operation != "late Fees":
+            self.loop_through_table(
+                "delete_charges", "late fees", chosen_month, reloop=True
+            )
+
+        if has_nsf and operation == "check_nsf":
+            return "nsf"
+
     def loop_through_table(
         self,
         operation,
@@ -137,28 +164,8 @@ class LedgerMaster(LedgerFunctions):
     ):
         self.URL = self.get_URL()
         table_xpath = self.choose_table[chosen_month]
-        has_late_credit = False
-        contains_nsf = False
         if not reloop:
-            try:
-                rows = self.webdriver.get_rows(table_xpath)
-            except:
-                return
-            for row in rows:
-                if self.webdriver.skip_row(row, "th3"):
-                    continue
-                transaction, amount = self.get_transaction_and_amount(row)
-                if "late fee credit" in transaction.lower():
-                    has_late_credit = True
-                if "nsf" in transaction.lower():
-                    contains_nsf = True
-
-        if has_late_credit and chosen_item != "late Fees":
-            self.loop_through_table(
-                "delete_charges", "late fees", chosen_month=chosen_month, reloop=True
-            )
-        if contains_nsf and operation == "check_nsf":
-            return "nsf"
+            self.pre_loop(chosen_month)
 
         idx = 0
 
@@ -200,8 +207,12 @@ class LedgerMaster(LedgerFunctions):
             transaction_is_credit = (
                 "credit" in transaction.lower() or "concession" in transaction.lower()
             )
-            if "rule compliance" in transaction.lower():
+            if (
+                "rule compliance" in transaction.lower()
+                or "credit card" in transaction.lower()
+            ):
                 transaction_is_credit = False
+            transaction_can_be_deleted = "rule compliance" not in transaction.lower()
             transaction_is_late_fee = "late" in transaction.lower()
             transaction_is_metered = self.is_metered(row)
 
@@ -257,11 +268,29 @@ class LedgerMaster(LedgerFunctions):
                     or (chosen_item == "credits" and transaction_is_payment)
                     or (chosen_item == "except metered" and not transaction_is_metered)
                     or (chosen_item == "late fees" and transaction_is_late_fee)
-                ):
+                ) and (transaction_can_be_deleted):
                     self.delete_charge(transaction_element)
                     continue
 
             idx += 1
+
+    def fix_nsf(self, chosen_month):
+        if (not self.pre_loop(chosen_month, "check_nsf") == "nsf") or (
+            not self.ledger_has_redstar()
+        ):
+            return
+        self.unallocate_all_op(chosen_month)
+        self.loop_through_table("fix_nsf", chosen_month=chosen_month)
+        self.allocate_all_op(chosen_month)
+        return True
+
+    def unallocate_all_op(self, chosen_month):
+        self.loop_through_table("unallocate_all", "charges", chosen_month=chosen_month)
+        self.loop_through_table("unallocate_all", "credits", chosen_month=chosen_month)
+
+    def allocate_all_op(self, chosen_month):
+        self.loop_through_table("allocate_all", "credits", chosen_month=chosen_month)
+        self.loop_through_table("allocate_all", "charges", chosen_month=chosen_month)
 
     def cancelled_true(self):
         if self.is_cancelled():

@@ -156,7 +156,7 @@ class LedgerOps(HelperWidget):
 
     def create_ledger_widgets(self):
         self.current_former_dropdown = self.create_dropdown(
-            ["Current", "Former"],
+            ["Current Resident", "Former Resident"],
             self.current_former_dropdown_change,
             current_index=0 if self.check_if_current() else 1,
         )
@@ -177,14 +177,14 @@ class LedgerOps(HelperWidget):
             "🟢 Allocate All",
             "Choose How",
             "Type",
-            ["Credits", "Charges"],
+            ["All", "Credits", "Charges"],
             "allocate_all",
         )
         self.unallocate_all_btn = self.create_configured_button(
             "🟠 Unallocate All",
             "Choose Transaction Type",
             "Type",
-            ["Charges", "Credits"],
+            ["All", "Charges", "Credits"],
             "unallocate_all",
         )
         self.credit_all_charges_btn = self.create_configured_button(
@@ -202,13 +202,20 @@ class LedgerOps(HelperWidget):
             "delete_charges",
         )
         self.fix_nsf_button = self.create_button(
-            "Fix NSF", partial(self.ledger_master.loop_through_table, "fix_nsf")
+            "Fix NSF", partial(self.ledger_master.fix_nsf, self.selected_month)
         )
 
     def click_button(self, operation, chosen_item=None):
         if chosen_item:
             if operation == "change_ledger":
                 func = partial(self.ledger_master.change_ledger, chosen_item)
+            elif operation == "allocate_all" and chosen_item == "All":
+                print(self.selected_month)
+                func = partial(self.ledger_master.allocate_all_op, self.selected_month)
+            elif operation == "unallocate_all" and chosen_item == "All":
+                func = partial(
+                    self.ledger_master.unallocate_all_op, self.selected_month
+                )
             else:
                 func = partial(
                     self.ledger_master.loop_through_table,

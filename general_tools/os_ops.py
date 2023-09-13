@@ -10,10 +10,10 @@ class OSBase:
     def __init__(self):
         now = datetime.now()
         year = now.year
-        month = now.month
+        self.month = now.month
         self.day = now.day
         username = "taylorremund"
-        self.root_path = f"/Users/{username}/Desktop/Reports/{year}/{month}/"
+        self.root_path = f"/Users/{username}/Desktop/Reports/{year}/{self.month}/"
 
 
 class OSInteract(OSBase):
