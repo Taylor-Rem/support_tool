@@ -18,5 +18,5 @@ if __name__ == "__main__":
         print("An error occurred:", e)
         traceback.print_exc()
     finally:
-        if main_app and hasattr(main_app, "webdriver"):
-            main_app.webdriver.close()
+        if main_app and hasattr(main_app, "browser"):
+            main_app.browser.close()

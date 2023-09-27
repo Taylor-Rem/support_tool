@@ -1,57 +1,32 @@
-from PyQt5.QtWidgets import (
-    QPushButton,
-    QVBoxLayout,
-    QWidget,
-    QStackedWidget,
-)
-from general_tools.webdriver import WebdriverOperations
-
-from front_end.tool_windows import (
-    LedgerTools,
-    TicketWindow,
-    ReportWindow,
-    ReportOpsWindow,
-    RedstarWindow,
-    RedstarOpsWindow,
-)
+from PyQt5.QtWidgets import QVBoxLayout, QWidget, QStackedWidget
+from functools import partial
+from general_tools.browser import Browser
+from front_end.base_widget import BaseWidget
+from front_end.visible_windows import RedstarHelper
 
 
-class App(QWidget):
+class App(BaseWidget):
     def __init__(self):
         super().__init__()
+        self.browser = Browser()
         self.stack = QStackedWidget()
         self.previous_widgets = []
-
-        self.webdriver = WebdriverOperations()
-
         self.init_windows()
         self.initUI()
 
     def initUI(self):
         self.setWindowTitle("Support Master")
+        layout = QVBoxLayout()
+        layout.addWidget(self.stack)
+        self.setLayout(layout)
         self.add_widgets()
-        self.setLayout(QVBoxLayout())
-        self.layout().addWidget(self.stack)
 
     def init_windows(self):
+        self.redstar_helper = RedstarHelper(self)
         self.init_main_window()
-        self.ledger_tools = LedgerTools(self)
-        self.ticket_window = TicketWindow(self)
-        self.report_window = ReportWindow(self)
-        self.report_ops_window = ReportOpsWindow(self)
-        self.redstar_window = RedstarWindow(self)
-        self.redstar_ops_window = RedstarOpsWindow(self)
 
     def add_widgets(self):
-        windows = [
-            self.main_window,
-            self.ledger_tools,
-            self.ticket_window,
-            self.report_window,
-            self.report_ops_window,
-            self.redstar_window,
-            self.redstar_ops_window,
-        ]
+        windows = [self.main_window, self.redstar_helper]
         for window in windows:
             self.stack.addWidget(window)
 
@@ -62,46 +37,33 @@ class App(QWidget):
 
         button_configs = [
             {
-                "name": "Ledger Tools",
-                "method": lambda: self.switch_window(self.ledger_tools),
-            },
-            {
-                "name": "Ticket Helper",
-                "method": lambda: self.switch_window(
-                    self.ticket_window, True, self.webdriver.manage_portal_url
+                "name": "Red Star Helper",
+                "method": partial(
+                    self.switch_window,
+                    self.redstar_helper,
+                    self.browser.resmap_url,
                 ),
-            },
-            {
-                "name": "Report Helper",
-                "method": lambda: self.switch_window(
-                    self.report_window, True, self.webdriver.res_map_url
-                ),
-            },
-            {
-                "name": "Redstar Helper",
-                "method": lambda: self.switch_window(
-                    self.redstar_window, True, self.webdriver.res_map_url
-                ),
-            },
+            }
+        ]
+        [
+            self._create_button(config["name"], config["method"], main_layout)
+            for config in button_configs
         ]
 
-        for config in button_configs:
-            self.create_button(config["name"], config["method"], main_layout)
-
-    def create_button(self, text, callback, layout):
-        button = QPushButton(text, self)
-        button.clicked.connect(callback)
-        layout.addWidget(button)
-
-    def switch_window(self, window, previous_widget=True, open_program=None):
-        if window not in [self.stack.widget(i) for i in range(self.stack.count())]:
-            self.stack.addWidget(window)
-        if previous_widget:
-            self.previous_widgets.append(self.stack.currentWidget())
+    def switch_window(self, window, open_program=None):
+        self.add_window_to_stack(window)
+        self.append_to_previous()
         self.stack.setCurrentWidget(window)
         if open_program:
-            self.webdriver.switch_to_primary_tab()
-            self.webdriver.open_program(open_program)
+            self.browser.open_program(open_program)
+
+    def add_window_to_stack(self, window):
+        if window not in [self.stack.widget(i) for i in range(self.stack.count())]:
+            self.stack.addWidget(window)
+
+    def append_to_previous(self, previous_widget=True):
+        if previous_widget:
+            self.previous_widgets.append(self.stack.currentWidget())
 
     def quit_app(self):
         self.close()

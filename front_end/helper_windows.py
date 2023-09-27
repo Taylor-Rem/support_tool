@@ -1,73 +1,13 @@
-from PyQt5.QtWidgets import (
-    QPushButton,
-    QVBoxLayout,
-    QWidget,
-    QLabel,
-    QMessageBox,
-    QInputDialog,
-    QComboBox,
-)
-from PyQt5.QtCore import QThread, pyqtSignal
-
+from PyQt5.QtWidgets import QVBoxLayout, QLabel
+from front_end.base_widget import BaseWidget
+from general_tools.operations import Operations
 from functools import partial
-from resmap_tools.ledger_ops import LedgerMaster
 
 
-class ThreadHelper(QThread):
-    finished_signal = pyqtSignal()
-    cancelled_signal = pyqtSignal()
-
-    def __init__(self, func, main_app, return_widget, *args, **kwargs):
-        super().__init__()
-        self.args = args
-        self.kwargs = kwargs
-        self._is_cancelled = False
-
-        # Adjust the function argument to include the is_cancelled method
-        self.func = func
-
-        self.main_app = main_app
-        self.return_widget = return_widget
-
-        # Connect signals here to unify the behavior
-        self.finished_signal.connect(self.on_finished)
-        self.cancelled_signal.connect(self.on_cancelled)
-
-    def is_cancelled(self):
-        return self._is_cancelled
-
-    def run(self):
-        self.func()  # now the function has all the arguments it needs already
-        if self._is_cancelled:
-            self.cancelled_signal.emit()
-        else:
-            self.finished_signal.emit()
-
-    def reset(self):
-        self._is_cancelled = False
-
-    def cancel(self):
-        self._is_cancelled = True
-
-    def start(self):
-        self.operation_window = ThreadRunningWindow(self.main_app, self)
-        self.main_app.switch_window(self.operation_window, False)
-        super().start()
-
-    def finish_operation(self):
-        print("Operation Completed")
-        self.main_app.switch_window(self.return_widget, False)
-
-    def on_cancelled(self):
-        self.finish_operation()
-
-    def on_finished(self):
-        self.finish_operation()
-
-
-class HelperWidget(QWidget):
+class HelperWidget(BaseWidget):
     def __init__(self, main_app, title):
         super().__init__()
+        self.operations = Operations(main_app.browser)
         self.main_app = main_app
         self.setWindowTitle(title)
 
@@ -81,167 +21,41 @@ class HelperWidget(QWidget):
         self.layout.addLayout(self.button_layout)
 
     def create_button(self, text, callback):
-        button = QPushButton(text, self)
-        button.clicked.connect(callback)
-        self.layout.addWidget(button)
-        return button
+        return super()._create_button(text, callback, self.layout)
 
     def go_back(self):
         if self.main_app.previous_widgets:
             last_widget = self.main_app.previous_widgets.pop()
             self.main_app.stack.setCurrentWidget(last_widget)
         else:
-            # In case the widget history is empty, fall back to the main window
             self.main_app.stack.setCurrentWidget(self.main_app.main_window)
 
     def add_back_btn(self):
         self.back_btn = self.create_button("⬅️ Back", self.go_back)
 
-    def create_dropdown(self, items, callback, current_index=0):
-        dropdown = QComboBox(self)
-        dropdown.addItems(items)
-        dropdown.setCurrentIndex(current_index)
-        dropdown.currentIndexChanged.connect(callback)
-        self.layout.addWidget(dropdown)
-        return dropdown
 
-    def get_confirmation(self, message="Are You Sure?", title="Confirm Operation"):
-        confirm_dialog = QMessageBox()
-        confirm_dialog.setWindowTitle(title)
-        confirm_dialog.setText(message)
-        confirm_dialog.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-        confirm_dialog.setDefaultButton(QMessageBox.No)
-
-        response = confirm_dialog.exec_()
-        return response == QMessageBox.Yes
-
-    def choose_between_values(
-        self, title, label, items=[], current_index=0, editable=False
-    ):
-        item, ok = QInputDialog.getItem(
-            self, title, label, items, current_index, editable
-        )
-        return item if ok else None
-
-    def create_configured_button(self, label, title, category, choices, action):
-        return self.create_button(
-            label, partial(self.choose_values, title, category, choices, action)
-        )
-
-
-class ThreadRunningWindow(HelperWidget):
-    def __init__(self, main_app, thread_helper, title="Running Operation"):
-        super().__init__(main_app, title)
-        self.thread_helper = thread_helper
-
-        self.operation_label = QLabel("Operation is running...", self)
-        self.layout.addWidget(self.operation_label)
-
-        self.cancel_btn = self.create_button("Cancel operation", self.cancel_operation)
-
-    def cancel_operation(self):
-        self.thread_helper.cancel()
-        self.operation_label.setText("Cancelling operation...")
-        self.cancel_btn.setEnabled(False)
-
-
-class LedgerOps(HelperWidget):
+class LedgerTools(HelperWidget):
     def __init__(self, main_app, title):
         super().__init__(main_app, title)
-        self.ledger_master = LedgerMaster(main_app.webdriver)
+        all_types = ["payment", "charge", "credit"]
 
-        self.selected_month = "current"
+        self.allocate = {
+            "All": {"operation": "allocate", "type": all_types},
+            "Payments": {"operation": "allocate", "type": "payment"},
+            "Charges": {"operation": "allocate", "type": "charge"},
+        }
+        self.unallocate = {
+            "All": {"operation": "unallocate", "type": all_types},
+            "Payments": {"operation": "unallocate", "type": "payment"},
+            "Charges": {"operation": "unallocate", "type": "charge"},
+        }
 
-        self.create_ledger_widgets()
-
-    def create_ledger_widgets(self):
-        self.current_former_dropdown = self.create_dropdown(
-            ["Current Resident", "Former Resident"],
-            self.current_former_dropdown_change,
-            current_index=0 if self.check_if_current() else 1,
+    def create_ledger_tools(self):
+        self.allocate_dropdown = self.create_configured_dropdown(
+            ["Allocate"] + list(self.allocate.keys()),
+            self.operations.init_operation,
         )
-        self.choose_month_dropdown = self.create_dropdown(
-            ["Current Month", "Previous Month"], self.change_month_dropdown_change
+        self.unallocate_dropdown = self.create_configured_dropdown(
+            ["Unallocate"] + list(self.allocate.keys()),
+            self.operations.init_operation,
         )
-        self.create_ledger_buttons()
-
-    def change_month_dropdown_change(self, index):
-        self.selected_month = "current" if index == 0 else "previous"
-
-    def current_former_dropdown_change(self):
-        chosen_item = self.current_former_dropdown.currentText()
-        self.click_button("change_ledger", chosen_item)
-
-    def create_ledger_buttons(self):
-        self.allocate_all_btn = self.create_configured_button(
-            "🟢 Allocate All",
-            "Choose How",
-            "Type",
-            ["All", "Credits", "Charges"],
-            "allocate_all",
-        )
-        self.unallocate_all_btn = self.create_configured_button(
-            "🟠 Unallocate All",
-            "Choose Transaction Type",
-            "Type",
-            ["All", "Charges", "Credits"],
-            "unallocate_all",
-        )
-        self.credit_all_charges_btn = self.create_configured_button(
-            "🔵 Credit All Charges",
-            "Choose Credit Type",
-            "Type",
-            ["Concession", "Credit"],
-            "credit_all_charges",
-        )
-        self.delete_charges_btn = self.create_configured_button(
-            "🔴 Delete All",
-            "Transaction to Delete",
-            "Type",
-            ["All", "Charges", "Credits", "Except Metered", "Late Fees"],
-            "delete_charges",
-        )
-        self.fix_nsf_button = self.create_button(
-            "Fix NSF", partial(self.ledger_master.fix_nsf, self.selected_month)
-        )
-
-    def click_button(self, operation, chosen_item=None):
-        if chosen_item:
-            if operation == "change_ledger":
-                func = partial(self.ledger_master.change_ledger, chosen_item)
-            elif operation == "allocate_all" and chosen_item == "All":
-                print(self.selected_month)
-                func = partial(self.ledger_master.allocate_all_op, self.selected_month)
-            elif operation == "unallocate_all" and chosen_item == "All":
-                func = partial(
-                    self.ledger_master.unallocate_all_op, self.selected_month
-                )
-            else:
-                func = partial(
-                    self.ledger_master.loop_through_table,
-                    operation,
-                    chosen_item.lower(),
-                    chosen_month=self.selected_month,
-                )
-        else:
-            print("Operation canceled.")
-            return
-
-        # Instantiate the thread helper here, similar to RedstarWindow
-        self.thread_helper = ThreadHelper(func, self.main_app, self)
-        self.ledger_master.thread_helper = (
-            self.thread_helper
-        )  # Inject ThreadHelper to LedgerMaster
-        self.thread_helper.reset()
-        self.thread_helper.start()
-
-    def refresh_former_dropdown(self):
-        current_index = 0 if self.check_if_current() else 1
-        self.current_former_dropdown.setCurrentIndex(current_index)
-
-    def choose_values(self, title, label, items, operation):
-        chosen_item = self.choose_between_values(title, label, items)
-        self.click_button(operation, chosen_item)
-
-    def check_if_current(self):
-        return "present" in self.ledger_master.scrape_dates().lower()

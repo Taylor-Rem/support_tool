@@ -10,19 +10,20 @@ from selenium.common.exceptions import (
     NoSuchWindowException,
     ElementNotInteractableException,
 )
+from selenium.webdriver.support.ui import Select
 from selenium.webdriver.common.action_chains import ActionChains
 import re
 from config import username, password
 
 
-class WebDriverBase:
+class BrowserBase:
     _instance = None
 
     def __init__(self):
-        if not WebDriverBase._instance:
-            WebDriverBase._instance = self.setup_webdriver()
+        if not BrowserBase._instance:
+            BrowserBase._instance = self.setup_webdriver()
 
-        self.driver = WebDriverBase._instance
+        self.driver = BrowserBase._instance
         self.wait = WebDriverWait(self.driver, 10)
         self.primary_tab = None
 
@@ -35,10 +36,10 @@ class WebDriverBase:
         if self.driver:
             self.driver.quit()
             self.driver = None
-            WebDriverBase._instance = None
+            BrowserBase._instance = None
 
 
-class WebElementOperations(WebDriverBase):
+class WebElementOperations(BrowserBase):
     def find_element(self, by, value):
         try:
             return self.driver.find_element(by, value)
@@ -121,10 +122,22 @@ class WebElementOperations(WebDriverBase):
             print("Value not found")
             return None
 
+    def define_select(self):
+        select_element = self.find_element(By.XPATH, "//select[@name='ttid']")
+        return Select(select_element)
 
-class WebUtilityOperations(WebDriverBase):
+
+class WebUtilityOperations(BrowserBase):
+    def wait_for_page_load(self):
+        self.wait_for_presence_of_element(By.TAG_NAME, "body")
+
     def wait_for_presence_of_element(self, by, value):
         return self.wait.until(EC.presence_of_element_located((by, value)))
+
+    from selenium.webdriver.support import expected_conditions as EC
+
+    def wait_for_presence_of_elements(self, by, value):
+        return self.wait.until(EC.presence_of_all_elements_located((by, value)))
 
     def wait_for_element_clickable(self, by, value):
         return self.wait.until(EC.element_to_be_clickable((by, value)))
@@ -161,21 +174,17 @@ class WebUtilityOperations(WebDriverBase):
         except NoSuchElementException:
             pass
 
-    def navigate_to(self, site, login_required=False, username="", password=""):
-        self.driver.get(site)
-        if login_required:
-            self.login(username, password)
-
-    def navigate_back_if_not(self, desired_url):
-        if not self.check_current_url(desired_url):
-            self.driver.back()
-
-    def open_program(self, site):
-        self.driver.get(site)
+    def open_program(self, url):
+        self.driver.get(url)
         self.login(username, password)
 
+    def launch_operation(self, url):
+        self.switch_to_primary_tab()
+        self.new_tab()
+        self.open_program(url)
 
-class WebdriverResmapOperations(WebDriverBase):
+
+class WebdriverResmapOperations(BrowserBase):
     def skip_row(self, row, class_name):
         try:
             row.find_element(By.CSS_SELECTOR, f"td.{class_name}")
@@ -183,15 +192,13 @@ class WebdriverResmapOperations(WebDriverBase):
         except:
             return False
 
-    def get_rows(self, value):
-        table = self.find_element(By.XPATH, value)
-        return table.find_elements(By.XPATH, ".//tr")
 
-
-class WebdriverOperations(
-    WebElementOperations, WebUtilityOperations, WebdriverResmapOperations
-):
+class Browser(WebElementOperations, WebUtilityOperations, WebdriverResmapOperations):
     def __init__(self):
-        super(WebdriverOperations, self).__init__()
-        self.res_map_url = "https://kingsley.residentmap.com/index.php"
+        super(Browser, self).__init__()
+        self.resmap_url = "https://kingsley.residentmap.com/index.php"
         self.manage_portal_url = "https://residentmap.kmcmh.com/#/support_desk"
+
+    def get_rows(self, by, value):
+        table = self.wait_for_presence_of_element(by, value)
+        return table.find_elements(By.XPATH, ".//tr")
