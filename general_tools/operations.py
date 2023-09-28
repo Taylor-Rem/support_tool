@@ -15,25 +15,31 @@ class Operations(OperationsBase):
     def __init__(self, browser):
         super().__init__(browser)
 
-    def init_operation(self, item):
+    def init_operation(self, command):
         month_table = ["allocate", "unallocate", "delete"]
-        if item["operation"] in month_table:
-            self.loop_through_ledger(item)
+        if command["operation"] in month_table:
+            self.loop_through_ledger(command)
 
-    def loop_through_ledger(self, item):
+    def loop_through_ledger(self, command):
         current_url = self.browser.driver.current_url
         idx = 0
+        ledger_info = self.ledger_master.retrieve_elements()
         while True:
-            rows_length = self.ledger_master.retrieve_rows_length()
-            if idx >= rows_length:
+            if idx >= ledger_info["rows_length"]:
                 break
-            transaction = self.ledger_master.retrieve_elements()[idx]
-            if "nsf" in transaction["label"].lower():
-                idx += 1
-                continue
-            if self.ledger_master.click_transaction(transaction, item):
-                self.transaction_master.define_type(item, transaction["type"])
+            ledger_row = ledger_info["rows"][idx]
+            ledger_row["prepaid_amount"] = ledger_info["prepaid_amount"]
+            if ledger_row.get("special_info"):
+                if (
+                    "bounced_check" in ledger_row["special_info"]
+                    or "system_nsf" in ledger_row["special_info"]
+                ):
+                    idx += 1
+                    continue
+            if self.ledger_master.click_transaction(ledger_row, command):
+                self.transaction_master.transactions_loop(command, ledger_row["type"])
                 self.browser.driver.get(current_url)
+                ledger_info = self.ledger_master.retrieve_elements()
             idx += 1
 
 
@@ -41,10 +47,30 @@ class LedgerMaster(LedgerOps):
     def __init__(self, browser):
         super().__init__(browser)
 
-    def click_transaction(self, transaction, item):
-        if transaction["type"] in item["type"]:
-            self.browser.click_element(transaction["link"])
-            return True
+    def click_transaction(self, ledger_row, command):
+        if command["operation"] in ("allocate", "unallocate"):
+            if ledger_row["type"] in command["type"]:
+                self.browser.click_element(ledger_row["link"])
+                return True
+        elif command["operation"] == "delete":
+            if command.get("special_type") == "metered":
+                # We only delete if it's not a "metered" transaction.
+                if (
+                    "metered" not in ledger_row["special_type"]
+                    or "payment" not in ledger_row["type"]
+                ):
+                    self.browser.click_element(ledger_row["link"])
+                    return True
+            elif command.get("special_type"):
+                # Other specific special_types
+                if command["special_type"] in ledger_row["special_type"]:
+                    self.browser.click_element(ledger_row["link"])
+                    return True
+            else:
+                # No specific special_type, we just go by type.
+                if ledger_row["type"] in command["type"]:
+                    self.browser.click_element(ledger_row["link"])
+                    return True
         return False
 
 
@@ -52,20 +78,28 @@ class TransactionMaster(TransactionOps):
     def __init__(self, browser):
         super().__init__(browser)
 
-    def define_type(self, item, type):
-        if type == "payment":
-            type = "credit"
-        self.transactions_loop(type, item)
-
-    def transactions_loop(self, type, item):
+    def transactions_loop(self, command, transaction_type):
         idx = 0
+        transaction_info = self.retrieve_elements(transaction_type)
         while True:
-            rows_length = self.retrieve_rows_length()
-            if idx >= rows_length:
+            if idx >= transaction_info["rows_length"]:
                 break
-            allocations = self.retrieve_elements(type)
-            allocation = allocations[idx]
-            self.perform_transaction_op(item["operation"], allocation)
+            finished_list = idx >= transaction_info["rows_length"] - 1
+            allocation = transaction_info["rows"][idx]
+            operation_result = self.perform_transaction_op(
+                command,
+                allocation,
+                transaction_type,
+                transaction_info["total_amount"],
+                finished_list,
+            )
+            if operation_result == "break":
+                break
+            if operation_result == "continue":
+                continue
+            if operation_result == "reload":
+                transaction_info = self.retrieve_elements(transaction_type)
+                continue
             idx += 1
 
 

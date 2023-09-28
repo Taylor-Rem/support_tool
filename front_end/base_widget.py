@@ -24,7 +24,14 @@ class BaseWidget(QWidget):
             dropdown.currentIndexChanged.connect(
                 lambda index: (
                     callback(
-                        self.get_operation_value_from_dropdown(dropdown.currentText())
+                        {
+                            "operation": self.get_operation_from_key(
+                                dropdown.currentText()
+                            ),
+                            **self.get_operation_value_from_dropdown(
+                                dropdown.currentText()
+                            ),
+                        }
                     ),
                     dropdown.setCurrentIndex(0),
                 )
@@ -35,8 +42,17 @@ class BaseWidget(QWidget):
         self.layout.addWidget(dropdown)
         return dropdown
 
+    def get_operation_from_key(self, key):
+        for operation, sub_dict in self.operations_dict.items():
+            if key in sub_dict:
+                return operation
+        return None
+
     def get_operation_value_from_dropdown(self, key):
-        return self.allocate.get(key)
+        for sub_dict in self.operations_dict.values():
+            if key in sub_dict:
+                return sub_dict.get(key)
+        return None
 
     def create_text_input(self, default_text="", label=None):
         if label:

@@ -39,23 +39,44 @@ class LedgerTools(HelperWidget):
         super().__init__(main_app, title)
         all_types = ["payment", "charge", "credit"]
 
-        self.allocate = {
-            "All": {"operation": "allocate", "type": all_types},
-            "Payments": {"operation": "allocate", "type": "payment"},
-            "Charges": {"operation": "allocate", "type": "charge"},
-        }
-        self.unallocate = {
-            "All": {"operation": "unallocate", "type": all_types},
-            "Payments": {"operation": "unallocate", "type": "payment"},
-            "Charges": {"operation": "unallocate", "type": "charge"},
+        self.operations_dict = {
+            "allocate": {
+                "Allocate All": {"operation": "allocate", "type": all_types},
+                "Allocate Payments": {"operation": "allocate", "type": "payment"},
+                "Allocate Charges": {"operation": "allocate", "type": "charge"},
+            },
+            "unallocate": {
+                "Unallocate All": {"operation": "unallocate", "type": all_types},
+                "Unallocate Payments": {"operation": "unallocate", "type": "payment"},
+                "Unallocate Charges": {"operation": "unallocate", "type": "charge"},
+            },
+            "delete": {
+                "Delete All": {"operation": "delete", "type": all_types},
+                "Delete Charges": {"operation": "delete", "type": "charge"},
+                "Delete Credits": {"operation": "delete", "type": "credit"},
+                "Delete Late Fees": {
+                    "operation": "delete",
+                    "type": None,
+                    "special_type": "late_fee",
+                },
+                "Delete Except Metered": {
+                    "operation": "delete",
+                    "type": all_types,
+                    "special_type": "metered",
+                },
+            },
         }
 
     def create_ledger_tools(self):
         self.allocate_dropdown = self.create_configured_dropdown(
-            ["Allocate"] + list(self.allocate.keys()),
+            ["Allocate"] + list(self.operations_dict["allocate"].keys()),
             self.operations.init_operation,
         )
         self.unallocate_dropdown = self.create_configured_dropdown(
-            ["Unallocate"] + list(self.allocate.keys()),
+            ["Unallocate"] + list(self.operations_dict["unallocate"].keys()),
+            self.operations.init_operation,
+        )
+        self.delete_dropdown = self.create_configured_dropdown(
+            ["Delete"] + list(self.operations_dict["delete"].keys()),
             self.operations.init_operation,
         )

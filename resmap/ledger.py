@@ -32,13 +32,56 @@ class LedgerScrape:
         except NoSuchElementException:
             return False
 
+    def scrape_prepaid(self):
+        prepaid_element = self.browser.find_element(
+            By.XPATH,
+            f"{self.base_xpath}[3]/tbody/tr[2]/td/table/tbody/tr[3]/td[5]",
+        )
+        value = prepaid_element.text.strip()
+        if "(" not in value:
+            return self.browser.get_number_from_inner_html(value)
 
-class LedgerLoop(LedgerScrape):
+
+class LoopFunctions(LedgerScrape):
+    def __init__(self, browser):
+        super().__init__(browser)
+
+    def determine_transaction_type(self, transaction, amount):
+        transaction_is_charge = "(" not in amount
+        transaction_is_credit = (
+            "credit" in transaction.lower() or "concession" in transaction.lower()
+        )
+        if (
+            "rule compliance" in transaction.lower()
+            or "credit card" in transaction.lower()
+        ):
+            transaction_is_credit = False
+        transaction_is_payment = ("(" in amount) and (not transaction_is_credit)
+
+        if transaction_is_charge:
+            return "charge"
+        elif transaction_is_payment:
+            return "payment"
+        elif transaction_is_credit:
+            return "credit"
+
+    def is_special_transaction(self, row, transaction, amount):
+        conditions = {
+            "late_fee": "late" in transaction.lower(),
+            "metered": self.check_is_metered(row),
+            "bounced_check": "(" in amount and "(nsf" in transaction.lower(),
+            "system_nsf": "(" not in amount and "(nsf)" in transaction.lower(),
+        }
+
+        return [key for key, condition_met in conditions.items() if condition_met]
+
+
+class LedgerLoop(LoopFunctions):
     def __init__(self, browser):
         super().__init__(browser)
 
     def loop_through_table(self, rows):
-        transactions = []
+        ledger_info = []
 
         for row in rows:
             if self.browser.skip_row(row, "th3"):
@@ -47,26 +90,11 @@ class LedgerLoop(LedgerScrape):
             transaction, amount = self.get_transaction_and_amount(row)
             amount_value = self.browser.get_number_from_inner_html(amount)
 
-            transaction_is_charge = "(" not in amount
-            transaction_is_credit = (
-                "credit" in transaction.lower() or "concession" in transaction.lower()
-            )
-            if (
-                "rule compliance" in transaction.lower()
-                or "credit card" in transaction.lower()
-            ):
-                transaction_is_credit = False
-            transaction_is_payment = ("(" in amount) and (not transaction_is_credit)
+            transaction_type = self.determine_transaction_type(transaction, amount)
+            special_types = self.is_special_transaction(row, transaction, amount)
 
-            if transaction_is_charge:
-                transaction_type = "charge"
-            elif transaction_is_payment:
-                transaction_type = "payment"
-            elif transaction_is_credit:
-                transaction_type = "credit"
-
+            trans_idx = 0
             while True:
-                trans_idx = 0
                 try:
                     transaction_element = row.find_element(
                         By.XPATH,
@@ -82,11 +110,13 @@ class LedgerLoop(LedgerScrape):
                 "label": transaction,
                 "amount": amount_value,
                 "type": transaction_type,
+                "special_type": special_types,
                 "link": transaction_element,
             }
-            transactions.append(transaction_info)
 
-        return transactions
+            ledger_info.append(transaction_info)
+
+        return ledger_info
 
 
 class LedgerOps(LedgerLoop):
@@ -94,9 +124,10 @@ class LedgerOps(LedgerLoop):
         super().__init__(browser)
         self.table_xpath = self.choose_table["current"]
 
-    def retrieve_rows_length(self):
-        return len(self.browser.get_rows(By.XPATH, self.table_xpath)) - 2
-
     def retrieve_elements(self):
         rows = self.browser.get_rows(By.XPATH, self.table_xpath)
-        return self.loop_through_table(rows)
+        return {
+            "rows": self.loop_through_table(rows),
+            "rows_length": len(rows) - 2,
+            "prepaid_amount": self.scrape_prepaid(),
+        }
