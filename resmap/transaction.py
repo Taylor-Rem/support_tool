@@ -99,6 +99,7 @@ class TransactionOps(TransactionLoop):
         if command["operation"] == "allocate":
             if transaction_type == "payment":
                 self.auto_allocate()
+                return "break"
 
             if transaction_type == "charge":
                 if allocation["amount"] == total_amount:

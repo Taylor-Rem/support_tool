@@ -107,8 +107,8 @@ class WebElementOperations(BrowserBase):
         return bool(self.find_element(by, value))
 
     def get_number_from_inner_html(self, HTML):
-        # Check for values in the format: ($ 13.81)
-        match = re.search(r"\(\$ ([\d,]+\.?\d*)\)", HTML)
+        # Check for values in the format: ($ 13.81) or ($13.81)
+        match = re.search(r"\(\$ ?([\d,]+\.?\d*)\)", HTML)
 
         # If not found, check for values in the format: $ 803.88
         if not match:
@@ -119,7 +119,6 @@ class WebElementOperations(BrowserBase):
             value_str_cleaned = value_str.replace(",", "")
             return float(value_str_cleaned)
         else:
-            print("Value not found")
             return None
 
     def define_select(self):

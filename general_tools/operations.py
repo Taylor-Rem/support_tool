@@ -17,30 +17,44 @@ class Operations(OperationsBase):
 
     def init_operation(self, command):
         month_table = ["allocate", "unallocate", "delete"]
+        general_ledger = ["delete"]
         if command["operation"] in month_table:
             self.loop_through_ledger(command)
+        if command["operation"] in general_ledger:
+            print(command)
 
     def loop_through_ledger(self, command):
         current_url = self.browser.driver.current_url
         idx = 0
         ledger_info = self.ledger_master.retrieve_elements()
         while True:
-            if idx >= ledger_info["rows_length"]:
+            if idx >= ledger_info["rows_length"] or self.break_early(
+                command, ledger_info
+            ):
                 break
             ledger_row = ledger_info["rows"][idx]
-            ledger_row["prepaid_amount"] = ledger_info["prepaid_amount"]
-            if ledger_row.get("special_info"):
+            ledger_row["prepaid_amount_info"] = ledger_info["prepaid_amount_info"]
+            if ledger_row.get("special_type"):
                 if (
-                    "bounced_check" in ledger_row["special_info"]
-                    or "system_nsf" in ledger_row["special_info"]
+                    "bounced_check" in ledger_row["special_type"]
+                    or "system_nsf" in ledger_row["special_type"]
                 ):
                     idx += 1
                     continue
             if self.ledger_master.click_transaction(ledger_row, command):
-                self.transaction_master.transactions_loop(command, ledger_row["type"])
-                self.browser.driver.get(current_url)
+                self.transaction_master.transactions_loop(command, ledger_row)
+                if self.browser.driver.current_url != current_url:
+                    self.browser.driver.get(current_url)
                 ledger_info = self.ledger_master.retrieve_elements()
             idx += 1
+
+    def break_early(self, command, ledger_info):
+        if command["operation"] == "allocate" and "charge" in command["type"]:
+            if (
+                ledger_info["prepaid_amount_info"]["prepaid_amount"] == 0
+                or not ledger_info["prepaid_amount_info"]["is_credit"]
+            ):
+                return True
 
 
 class LedgerMaster(LedgerOps):
@@ -48,39 +62,30 @@ class LedgerMaster(LedgerOps):
         super().__init__(browser)
 
     def click_transaction(self, ledger_row, command):
-        if command["operation"] in ("allocate", "unallocate"):
-            if ledger_row["type"] in command["type"]:
+        exclude = command.get("exclude", [])
+        if command["operation"] in ("allocate", "unallocate", "delete"):
+            if (
+                (ledger_row["type"] in command["type"])
+                or (ledger_row["special_type"] in command["type"])
+            ) and (
+                (ledger_row["type"] not in exclude)
+                or ledger_row["special_type"] not in exclude
+            ):
                 self.browser.click_element(ledger_row["link"])
                 return True
-        elif command["operation"] == "delete":
-            if command.get("special_type") == "metered":
-                # We only delete if it's not a "metered" transaction.
-                if (
-                    "metered" not in ledger_row["special_type"]
-                    or "payment" not in ledger_row["type"]
-                ):
-                    self.browser.click_element(ledger_row["link"])
-                    return True
-            elif command.get("special_type"):
-                # Other specific special_types
-                if command["special_type"] in ledger_row["special_type"]:
-                    self.browser.click_element(ledger_row["link"])
-                    return True
-            else:
-                # No specific special_type, we just go by type.
-                if ledger_row["type"] in command["type"]:
-                    self.browser.click_element(ledger_row["link"])
-                    return True
-        return False
+
+    def click_ledger(self, command):
+        if command["operation"] == "credit":
+            pass
 
 
 class TransactionMaster(TransactionOps):
     def __init__(self, browser):
         super().__init__(browser)
 
-    def transactions_loop(self, command, transaction_type):
+    def transactions_loop(self, command, transaction):
         idx = 0
-        transaction_info = self.retrieve_elements(transaction_type)
+        transaction_info = self.retrieve_elements(transaction["type"])
         while True:
             if idx >= transaction_info["rows_length"]:
                 break
@@ -89,7 +94,7 @@ class TransactionMaster(TransactionOps):
             operation_result = self.perform_transaction_op(
                 command,
                 allocation,
-                transaction_type,
+                transaction["type"],
                 transaction_info["total_amount"],
                 finished_list,
             )
@@ -98,7 +103,7 @@ class TransactionMaster(TransactionOps):
             if operation_result == "continue":
                 continue
             if operation_result == "reload":
-                transaction_info = self.retrieve_elements(transaction_type)
+                transaction_info = self.retrieve_elements(transaction["type"])
                 continue
             idx += 1
 

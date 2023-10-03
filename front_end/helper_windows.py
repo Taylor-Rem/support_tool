@@ -38,32 +38,33 @@ class LedgerTools(HelperWidget):
     def __init__(self, main_app, title):
         super().__init__(main_app, title)
         all_types = ["payment", "charge", "credit"]
+        self.additional_info_window = AdditionalInfoWindow(main_app)
 
         self.operations_dict = {
             "allocate": {
                 "Allocate All": {"operation": "allocate", "type": all_types},
-                "Allocate Payments": {"operation": "allocate", "type": "payment"},
-                "Allocate Charges": {"operation": "allocate", "type": "charge"},
+                "Allocate Payments": {"operation": "allocate", "type": ["payment"]},
+                "Allocate Charges": {"operation": "allocate", "type": ["charge"]},
             },
             "unallocate": {
                 "Unallocate All": {"operation": "unallocate", "type": all_types},
-                "Unallocate Payments": {"operation": "unallocate", "type": "payment"},
-                "Unallocate Charges": {"operation": "unallocate", "type": "charge"},
+                "Unallocate Payments": {"operation": "unallocate", "type": ["payment"]},
+                "Unallocate Charges": {"operation": "unallocate", "type": ["charge"]},
             },
             "delete": {
                 "Delete All": {"operation": "delete", "type": all_types},
-                "Delete Charges": {"operation": "delete", "type": "charge"},
-                "Delete Credits": {"operation": "delete", "type": "credit"},
-                "Delete Late Fees": {
-                    "operation": "delete",
-                    "type": None,
-                    "special_type": "late_fee",
-                },
+                "Delete Charges": {"operation": "delete", "type": ["charge"]},
+                "Delete Credits": {"operation": "delete", "type": ["credit"]},
+                "Delete Late Fees": {"operation": "delete", "type": ["late_fee"]},
                 "Delete Except Metered": {
                     "operation": "delete",
                     "type": all_types,
-                    "special_type": "metered",
+                    "exclude": "metered",
                 },
+            },
+            "credit": {
+                "Credit": {"operation": "credit", "widgets": ["text_input"]},
+                "Concession": {"operation": "concession", "widgets": ["text_input"]},
             },
         }
 
@@ -80,3 +81,27 @@ class LedgerTools(HelperWidget):
             ["Delete"] + list(self.operations_dict["delete"].keys()),
             self.operations.init_operation,
         )
+        self.credit_dropdown = self.create_configured_dropdown(
+            ["Credit Charges"] + list(self.operations_dict["credit"].keys()),
+            self.create_AIW_with_widgets,
+        )
+
+    def create_AIW_with_widgets(self, operation):
+        self.additional_info_window.create_additional_info_widgets(operation)
+        self.main_app.switch_window(self.additional_info_window)
+
+
+class AdditionalInfoWindow(HelperWidget):
+    def __init__(self, main_app, operation_details=None):
+        super().__init__(main_app, "Additional Info")
+        if operation_details:
+            self.create_additional_info_widgets(operation_details)
+
+    def create_additional_info_widgets(self, operation):
+        for widget in operation["widgets"]:
+            if widget == "text_input":
+                self.create_text_input("Enter Comment")
+        self.create_button("Submit", self.print_additional_info)
+
+    def print_additional_info(self, item):
+        print(item)

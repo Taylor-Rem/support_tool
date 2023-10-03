@@ -39,7 +39,10 @@ class LedgerScrape:
         )
         value = prepaid_element.text.strip()
         if "(" not in value:
-            return self.browser.get_number_from_inner_html(value)
+            return {
+                "prepaid_amount": self.browser.get_number_from_inner_html(value),
+                "is_credit": "(" not in value,
+            }
 
 
 class LoopFunctions(LedgerScrape):
@@ -129,5 +132,5 @@ class LedgerOps(LedgerLoop):
         return {
             "rows": self.loop_through_table(rows),
             "rows_length": len(rows) - 2,
-            "prepaid_amount": self.scrape_prepaid(),
+            "prepaid_amount_info": self.scrape_prepaid(),
         }
