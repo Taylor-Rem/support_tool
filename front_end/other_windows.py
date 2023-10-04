@@ -1,5 +1,12 @@
-from front_end.helper_windows import HelperWidget, LedgerTools
+from front_end.helper_windows import HelperWidget
+from front_end.general_windows import LedgerTools
 from functools import partial
+
+
+class TicketHelper(HelperWidget):
+    def __init__(self, main_app):
+        super().__init__(main_app, "Ticket Helper")
+        self.add_back_btn()
 
 
 class RedstarHelper(LedgerTools):

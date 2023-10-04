@@ -9,7 +9,9 @@ class LedgerScrape:
         self.choose_table = {
             "current": f"{self.base_xpath}[last()-4]/tbody/tr[2]/td/table/tbody",
             "previous": f"{self.base_xpath}[last()-5]/tbody/tr[2]/td/table/tbody",
+            "bottom": f"{self.base_xpath}[last()-1]/tbody/tr[2]/td/table/tbody",
         }
+        self.transaction_amount_cells = {"current": [1, 3], "bottom": [1, 2]}
 
     def ledger_has_redstar(self):
         return self.browser.element_exists(
@@ -18,12 +20,6 @@ class LedgerScrape:
 
     def get_URL(self):
         return self.browser.driver.current_url
-
-    def get_transaction_and_amount(self, row):
-        cells = row.find_elements(By.TAG_NAME, "td")
-        transaction = cells[2].text.strip()
-        amount = cells[3].text.strip()
-        return transaction, amount
 
     def check_is_metered(self, row):
         try:
@@ -38,45 +34,71 @@ class LedgerScrape:
             f"{self.base_xpath}[3]/tbody/tr[2]/td/table/tbody/tr[3]/td[5]",
         )
         value = prepaid_element.text.strip()
-        if "(" not in value:
-            return {
-                "prepaid_amount": self.browser.get_number_from_inner_html(value),
-                "is_credit": "(" not in value,
-            }
+        prepaid_amount = self.browser.get_number_from_inner_html(value)
+        return prepaid_amount if "(" not in value else -prepaid_amount
 
 
 class LoopFunctions(LedgerScrape):
     def __init__(self, browser):
         super().__init__(browser)
 
-    def determine_transaction_type(self, transaction, amount):
-        transaction_is_charge = "(" not in amount
-        transaction_is_credit = (
-            "credit" in transaction.lower() or "concession" in transaction.lower()
-        )
-        if (
-            "rule compliance" in transaction.lower()
-            or "credit card" in transaction.lower()
-        ):
-            transaction_is_credit = False
-        transaction_is_payment = ("(" in amount) and (not transaction_is_credit)
+    def get_row_details(self, row):
+        cells = row.find_elements(By.TAG_NAME, "td")
 
-        if transaction_is_charge:
-            return "charge"
-        elif transaction_is_payment:
-            return "payment"
-        elif transaction_is_credit:
-            return "credit"
+        if self.table in ["current", "previous"]:
+            transaction = cells[2]
+            amount = cells[3].text.strip()
+        elif self.table == "bottom":
+            transaction = cells[0]
+            amount = cells[1].text.strip()
 
-    def is_special_transaction(self, row, transaction, amount):
-        conditions = {
-            "late_fee": "late" in transaction.lower(),
-            "metered": self.check_is_metered(row),
-            "bounced_check": "(" in amount and "(nsf" in transaction.lower(),
-            "system_nsf": "(" not in amount and "(nsf)" in transaction.lower(),
+        label = transaction.text.strip().lower()
+        amount_value = self.browser.get_number_from_inner_html(amount)
+
+        self.row_details = {
+            "transaction_label": label,
+            "amount_value": amount_value,
+            "prepaid_amount": self.scrape_prepaid(),
         }
 
-        return [key for key, condition_met in conditions.items() if condition_met]
+        transaction_link = transaction.find_element(By.TAG_NAME, "a")
+
+        if self.table in ["current", "previous"]:
+            self.row_details.update({"link": transaction_link, "amount": amount})
+            self.determine_transaction_type(row, label)
+
+    def determine_transaction_type(self, row, label):
+        is_charge = "(" not in self.row_details["amount"]
+        is_credit = "credit" in label or "concession" in label
+        is_payment = not is_charge and not is_credit
+
+        if "rule compliance" in label or "credit card" in label:
+            is_credit = False
+
+        type_update = {}
+        special_type_update = {}
+
+        if is_charge:
+            type_update["type"] = "charge"
+        elif is_payment:
+            type_update["type"] = "payment"
+        elif is_credit:
+            type_update["type"] = "credit"
+
+        special_types = ["late", "metered", "bounced_check", "system_nsf"]
+        checks = [
+            "late" in label,
+            self.check_is_metered(row),
+            is_payment and "(nsf" in label,
+            is_charge and "(nsf" in label,
+        ]
+
+        for s_type, check in zip(special_types, checks):
+            if check:
+                special_type_update["special_type"] = s_type
+                break
+
+        self.row_details.update(**type_update, **special_type_update)
 
 
 class LedgerLoop(LoopFunctions):
@@ -89,48 +111,46 @@ class LedgerLoop(LoopFunctions):
         for row in rows:
             if self.browser.skip_row(row, "th3"):
                 continue
-
-            transaction, amount = self.get_transaction_and_amount(row)
-            amount_value = self.browser.get_number_from_inner_html(amount)
-
-            transaction_type = self.determine_transaction_type(transaction, amount)
-            special_types = self.is_special_transaction(row, transaction, amount)
-
-            trans_idx = 0
-            while True:
-                try:
-                    transaction_element = row.find_element(
-                        By.XPATH,
-                        f".//a[contains(text(), '{transaction[: trans_idx]}')]",
-                    )
-                    break
-                except:
-                    if trans_idx == -len(transaction):
-                        continue
-                    trans_idx -= 1
-
-            transaction_info = {
-                "label": transaction,
-                "amount": amount_value,
-                "type": transaction_type,
-                "special_type": special_types,
-                "link": transaction_element,
-            }
-
-            ledger_info.append(transaction_info)
-
+            self.get_row_details(row)
+            ledger_info.append(self.row_details)
         return ledger_info
 
 
 class LedgerOps(LedgerLoop):
-    def __init__(self, browser):
+    def __init__(self, browser, command):
         super().__init__(browser)
-        self.table_xpath = self.choose_table["current"]
+        self.command = command
 
     def retrieve_elements(self):
-        rows = self.browser.get_rows(By.XPATH, self.table_xpath)
-        return {
-            "rows": self.loop_through_table(rows),
-            "rows_length": len(rows) - 2,
-            "prepaid_amount_info": self.scrape_prepaid(),
-        }
+        table_xpath = self.choose_table[self.table]
+        rows = self.browser.get_rows(By.XPATH, table_xpath)
+        table_rows = self.loop_through_table(rows)
+        return table_rows
+
+    def click_transaction(self):
+        exclude = self.command.get("exclude", [])
+        if (
+            (self.ledger_row["type"] in self.command["type"])
+            or (self.ledger_row["special_type"] in self.command["type"])
+        ) and (
+            (self.ledger_row["type"] not in exclude)
+            or self.ledger_row["special_type"] not in exclude
+        ):
+            self.browser.click_element(self.ledger_row["link"])
+            return True
+
+    def click_ledger(self):
+        if self.command["operation"] == "credit":
+            self.browser.click(By.XPATH, "//a[contains(., 'Add Credit')]")
+
+    def return_to_ledger(self):
+        if self.browser.driver.current_url != self.current_url:
+            self.browser.driver.get(self.current_url)
+
+    def check_nsf(self):
+        if self.ledger_row.get("special_type"):
+            if (
+                "bounced_check" in self.ledger_row["special_type"]
+                or "system_nsf" in self.ledger_row["special_type"]
+            ):
+                return True

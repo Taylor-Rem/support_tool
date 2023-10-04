@@ -196,7 +196,7 @@ class Browser(WebElementOperations, WebUtilityOperations, WebdriverResmapOperati
     def __init__(self):
         super(Browser, self).__init__()
         self.resmap_url = "https://kingsley.residentmap.com/index.php"
-        self.manage_portal_url = "https://residentmap.kmcmh.com/#/support_desk"
+        self.manageportal_url = "https://residentmap.kmcmh.com/#/support_desk"
 
     def get_rows(self, by, value):
         table = self.wait_for_presence_of_element(by, value)

@@ -1,111 +1,103 @@
 from general_tools.os_ops import ReportsBase
 from resmap.ledger import LedgerOps
 from resmap.transaction import TransactionOps
+from resmap.add_credit import AddCreditOps
 
 
 class OperationsBase:
     def __init__(self, browser):
         self.browser = browser
-        self.ledger_master = LedgerMaster(browser)
-        self.transaction_master = TransactionMaster(browser)
-        self.redstar_master = RedStarMaster(browser, "redstar_report")
+        self.redstar_master = RedStarMaster(self.browser, "redstar_report")
+
+    def init_operation(self, command):
+        self.command = command
+        self.initialize_classes(command)
+        self.perform_operation()
+
+    def initialize_classes(self, command):
+        self.transaction_master = TransactionMaster(self.browser, command)
+        self.ledger_master = LedgerMaster(
+            self.browser, command, self.transaction_master
+        )
 
 
 class Operations(OperationsBase):
     def __init__(self, browser):
         super().__init__(browser)
 
-    def init_operation(self, command):
+    def perform_operation(self):
         month_table = ["allocate", "unallocate", "delete"]
-        general_ledger = ["delete"]
-        if command["operation"] in month_table:
-            self.loop_through_ledger(command)
-        if command["operation"] in general_ledger:
-            print(command)
+        general_ledger = ["credit"]
 
-    def loop_through_ledger(self, command):
-        current_url = self.browser.driver.current_url
-        idx = 0
-        ledger_info = self.ledger_master.retrieve_elements()
-        while True:
-            if idx >= ledger_info["rows_length"] or self.break_early(
-                command, ledger_info
-            ):
-                break
-            ledger_row = ledger_info["rows"][idx]
-            ledger_row["prepaid_amount_info"] = ledger_info["prepaid_amount_info"]
-            if ledger_row.get("special_type"):
-                if (
-                    "bounced_check" in ledger_row["special_type"]
-                    or "system_nsf" in ledger_row["special_type"]
-                ):
-                    idx += 1
-                    continue
-            if self.ledger_master.click_transaction(ledger_row, command):
-                self.transaction_master.transactions_loop(command, ledger_row)
-                if self.browser.driver.current_url != current_url:
-                    self.browser.driver.get(current_url)
-                ledger_info = self.ledger_master.retrieve_elements()
-            idx += 1
+        if self.command["operation"] in month_table:
+            self.ledger_month_ops("current")
 
-    def break_early(self, command, ledger_info):
-        if command["operation"] == "allocate" and "charge" in command["type"]:
-            if (
-                ledger_info["prepaid_amount_info"]["prepaid_amount"] == 0
-                or not ledger_info["prepaid_amount_info"]["is_credit"]
-            ):
-                return True
+        if self.command["operation"] in general_ledger:
+            self.ledger_master.click_ledger()
+
+    def ledger_month_ops(self, month):
+        self.ledger_master.ledger_loop(month)
 
 
 class LedgerMaster(LedgerOps):
-    def __init__(self, browser):
-        super().__init__(browser)
+    def __init__(self, browser, command, transaction_master):
+        super().__init__(browser, command)
+        self.transaction_master = transaction_master
+        self.current_url = self.browser.driver.current_url
 
-    def click_transaction(self, ledger_row, command):
-        exclude = command.get("exclude", [])
-        if command["operation"] in ("allocate", "unallocate", "delete"):
-            if (
-                (ledger_row["type"] in command["type"])
-                or (ledger_row["special_type"] in command["type"])
-            ) and (
-                (ledger_row["type"] not in exclude)
-                or ledger_row["special_type"] not in exclude
-            ):
-                self.browser.click_element(ledger_row["link"])
-                return True
+    def ledger_loop(self, table):
+        self.table = table
+        idx = 0
+        self.ledger_info = self.retrieve_elements()
+        rows_length = len(self.ledger_info)
+        while True:
+            if idx >= rows_length or self.break_early():
+                break
+            self.ledger_row = self.ledger_info[idx]
+            if self.check_nsf():
+                idx += 1
+                continue
+            if self.click_transaction():
+                self.transaction_master.transaction_loop(self.ledger_row)
+                self.return_to_ledger()
+                self.ledger_info = self.retrieve_elements()
+                rows_length = len(self.ledger_info)
+            idx += 1
 
-    def click_ledger(self, command):
-        if command["operation"] == "credit":
-            pass
+    def break_early(self):
+        if (
+            self.command["operation"] == "allocate" and "charge" in self.command["type"]
+        ) and self.ledger_info["prepaid_amount"] <= 0:
+            return True
 
 
 class TransactionMaster(TransactionOps):
-    def __init__(self, browser):
-        super().__init__(browser)
+    def __init__(self, browser, command):
+        super().__init__(browser, command)
 
-    def transactions_loop(self, command, transaction):
+    def transaction_loop(self, ledger_row):
+        self.ledger_row = ledger_row
+        self.transaction_info = self.retrieve_elements()
         idx = 0
-        transaction_info = self.retrieve_elements(transaction["type"])
         while True:
-            if idx >= transaction_info["rows_length"]:
+            if idx >= self.transaction_info["rows_length"]:
                 break
-            finished_list = idx >= transaction_info["rows_length"] - 1
-            allocation = transaction_info["rows"][idx]
-            operation_result = self.perform_transaction_op(
-                command,
-                allocation,
-                transaction["type"],
-                transaction_info["total_amount"],
-                finished_list,
-            )
+            self.finished_list = idx >= self.transaction_info["rows_length"] - 1
+            self.allocation = self.transaction_info["rows"][idx]
+            operation_result = self.perform_transaction_op()
             if operation_result == "break":
                 break
             if operation_result == "continue":
                 continue
             if operation_result == "reload":
-                transaction_info = self.retrieve_elements(transaction["type"])
+                self.transaction_info = self.retrieve_elements()
                 continue
             idx += 1
+
+
+class AddCreditMaster(AddCreditOps):
+    def __init__(self, browser, command):
+        super().__init__()
 
 
 class RedStarMaster(ReportsBase):

@@ -65,7 +65,7 @@ class TransactionLoop(TransactionScrape):
     def __init__(self, browser):
         super().__init__(browser)
 
-    def loop_through_table(self, rows, type):
+    def loop_through_table(self, rows):
         allocations = []
         for row in rows:
             if self.browser.skip_row(row, "th3"):
@@ -73,55 +73,63 @@ class TransactionLoop(TransactionScrape):
             if self.browser.skip_row(row, "td3"):
                 continue
             cells = row.find_elements(By.TAG_NAME, "td")
-            if type == "charge":
+            if self.ledger_row["type"] == "charge":
                 allocation_info = self.retrieve_charge_info(cells)
-            elif type == "payment":
+            elif self.ledger_row["type"] == "payment":
                 allocation_info = self.retrieve_payment_info(cells)
             allocations.append(allocation_info)
         return allocations
 
 
 class TransactionOps(TransactionLoop):
-    def __init__(self, browser):
+    def __init__(self, browser, command):
         super().__init__(browser)
+        self.command = command
 
-    def retrieve_elements(self, transaction_type):
-        rows = self.browser.get_rows(By.XPATH, self.table_identifier[transaction_type])
+    def retrieve_elements(self):
+        rows = self.browser.get_rows(
+            By.XPATH, self.table_identifier[self.ledger_row["type"]]
+        )
         return {
-            "rows": self.loop_through_table(rows, transaction_type),
+            "rows": self.loop_through_table(rows),
             "rows_length": len(rows) - 2,
-            "total_amount": self.scrape_total_amount(transaction_type),
+            "total_amount": self.scrape_total_amount(self.ledger_row["type"]),
         }
 
-    def perform_transaction_op(
-        self, command, allocation, transaction_type, total_amount, finished_list
-    ):
-        if command["operation"] == "allocate":
-            if transaction_type == "payment":
+    def perform_transaction_op(self):
+        if self.command["operation"] == "allocate":
+            if self.ledger_row["type"] == "payment":
                 self.auto_allocate()
                 return "break"
 
-            if transaction_type == "charge":
-                if allocation["amount"] == total_amount:
+            if self.ledger_row["type"] == "charge":
+                if self.allocation["amount"] == self.transaction_info["total_amount"]:
                     return "break"
-                if allocation["amount"] != 0:
+                if self.allocation["amount"] != 0:
                     return
-                amount_to_allocate = total_amount - allocation["amount"]
+                potential_allocation = (
+                    self.transaction_info["total_amount"] - self.allocation["amount"]
+                )
+                amount_to_allocate = (
+                    potential_allocation
+                    if potential_allocation <= self.ledger_row["prepaid_amount"]
+                    else self.ledger_row["prepaid_amount"]
+                )
                 self.browser.send_keys_to_element(
-                    allocation["input"], amount_to_allocate, True
+                    self.allocation["input"], amount_to_allocate, True
                 )
 
-        if command["operation"] == "unallocate":
-            if transaction_type == "payment":
-                self.clear_element(allocation["input"], finished_list)
+        if self.command["operation"] == "unallocate":
+            if self.ledger_row["type"] == "payment":
+                self.clear_element(self.allocation["input"], self.finished_list)
 
-            if transaction_type == "charge":
-                if allocation["amount"] == 0 or allocation["amount"] == "":
+            if self.ledger_row["type"] == "charge":
+                if self.allocation["amount"] == 0 or self.allocation["amount"] == "":
                     return "break"
-                self.clear_element(allocation["input"], True)
+                self.clear_element(self.allocation["input"], True)
                 return "reload"
 
-        if command["operation"] == "delete":
+        if self.command["operation"] == "delete":
             try:
                 self.browser.click(By.NAME, "delete")
                 alert = self.browser.driver.switch_to.alert
