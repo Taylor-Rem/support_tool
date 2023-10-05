@@ -6,26 +6,26 @@ class LedgerOperations(HelperWidget):
     def __init__(self, main_app, title):
         super().__init__(main_app, title)
         self.additional_info_window = AdditionalInfoWindow(main_app)
-        all_types = ["payment", "charge", "credit"]
+        self.month_selector = {"Current Month": "current", "Previous Month": "previous"}
         self.operations_dict = {
             "allocate": {
-                "Allocate All": {"operation": "allocate", "type": all_types},
-                "Allocate Payments": {"operation": "allocate", "type": ["payment"]},
-                "Allocate Charges": {"operation": "allocate", "type": ["charge"]},
+                "Allocate All": {"operation": "allocate", "type": "all"},
+                "Allocate Payments": {"operation": "allocate", "type": "payment"},
+                "Allocate Charges": {"operation": "allocate", "type": "charge"},
             },
             "unallocate": {
-                "Unallocate All": {"operation": "unallocate", "type": all_types},
-                "Unallocate Payments": {"operation": "unallocate", "type": ["payment"]},
-                "Unallocate Charges": {"operation": "unallocate", "type": ["charge"]},
+                "Unallocate All": {"operation": "unallocate", "type": "all"},
+                "Unallocate Payments": {"operation": "unallocate", "type": "payment"},
+                "Unallocate Charges": {"operation": "unallocate", "type": "charge"},
             },
             "delete": {
-                "Delete All": {"operation": "delete", "type": all_types},
-                "Delete Charges": {"operation": "delete", "type": ["charge"]},
-                "Delete Credits": {"operation": "delete", "type": ["credit"]},
-                "Delete Late Fees": {"operation": "delete", "type": ["late_fee"]},
+                "Delete All": {"operation": "delete", "type": "all"},
+                "Delete Charges": {"operation": "delete", "type": "charge"},
+                "Delete Credits": {"operation": "delete", "type": "credit"},
+                "Delete Late Fees": {"operation": "delete", "type": "late_fee"},
                 "Delete Except Metered": {
                     "operation": "delete",
-                    "type": all_types,
+                    "type": "all",
                     "exclude": "metered",
                 },
             },
@@ -41,26 +41,37 @@ class LedgerTools(LedgerOperations):
         super().__init__(main_app, title)
 
     def create_ledger_tools(self):
+        self.choose_month_dropdown = self.create_dropdown(
+            list(self.month_selector.keys())
+        )
         self.allocate_dropdown = self.create_configured_dropdown(
-            ["Allocate"] + list(self.operations_dict["allocate"].keys()),
-            self.operations.init_operation,
+            ["Allocate"] + list(self.operations_dict["allocate"].keys()), self.submit
         )
         self.unallocate_dropdown = self.create_configured_dropdown(
             ["Unallocate"] + list(self.operations_dict["unallocate"].keys()),
-            self.operations.init_operation,
+            self.submit,
         )
         self.delete_dropdown = self.create_configured_dropdown(
-            ["Delete"] + list(self.operations_dict["delete"].keys()),
-            self.operations.init_operation,
+            ["Delete"] + list(self.operations_dict["delete"].keys()), self.submit
         )
         self.credit_dropdown = self.create_configured_dropdown(
             ["Credit Charges"] + list(self.operations_dict["credit"].keys()),
-            self.create_AIW_with_widgets,
+            self.submit,
         )
 
     def create_AIW_with_widgets(self, command):
         self.additional_info_window.create_additional_info_widgets(command)
         self.main_app.switch_window(self.additional_info_window)
+
+    def submit(self, command):
+        if command["operation"] in ["allocate", "unallocate", "delete"]:
+            command["table"] = self.month_selector[
+                self.choose_month_dropdown.currentText()
+            ]
+        self.operations.init_operation(command)
+        if command["operation"] in ["credit"]:
+            command["table"] = "bottom"
+            self.create_AIW_with_widgets(command)
 
 
 class AdditionalInfoWindow(HelperWidget):

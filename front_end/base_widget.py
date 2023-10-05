@@ -16,6 +16,13 @@ class BaseWidget(QWidget):
         layout.addWidget(button)
         return button
 
+    def create_dropdown(self, items, current_index=0):
+        dropdown = QComboBox(self)
+        dropdown.addItems(items)
+        dropdown.setCurrentIndex(current_index)
+        self.layout.addWidget(dropdown)
+        return dropdown
+
     def create_configured_dropdown(self, items, callback=None):
         dropdown = QComboBox(self)
         dropdown.addItems(items)
@@ -42,6 +49,15 @@ class BaseWidget(QWidget):
         self.layout.addWidget(dropdown)
         return dropdown
 
+    def create_text_input(self, default_text="", label=None):
+        if label:
+            label = QLabel(label)
+            self.layout.addWidget(label)
+        text_input = QLineEdit(self)
+        text_input.setText(default_text)
+        self.layout.addWidget(text_input)
+        return text_input
+
     def get_operation_from_key(self, key):
         for operation, sub_dict in self.operations_dict.items():
             if key in sub_dict:
@@ -53,15 +69,6 @@ class BaseWidget(QWidget):
             if key in sub_dict:
                 return sub_dict.get(key)
         return None
-
-    def create_text_input(self, default_text="", label=None):
-        if label:
-            label = QLabel(label)
-            self.layout.addWidget(label)
-        text_input = QLineEdit(self)
-        text_input.setText(default_text)
-        self.layout.addWidget(text_input)
-        return text_input
 
     def clear_layout(self):
         while self.layout.count():

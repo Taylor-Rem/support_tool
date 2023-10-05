@@ -45,10 +45,10 @@ class LoopFunctions(LedgerScrape):
     def get_row_details(self, row):
         cells = row.find_elements(By.TAG_NAME, "td")
 
-        if self.table in ["current", "previous"]:
+        if self.command["table"] in ["current", "previous"]:
             transaction = cells[2]
             amount = cells[3].text.strip()
-        elif self.table == "bottom":
+        elif self.command["table"] == "bottom":
             transaction = cells[0]
             amount = cells[1].text.strip()
 
@@ -58,12 +58,12 @@ class LoopFunctions(LedgerScrape):
         self.row_details = {
             "transaction_label": label,
             "amount_value": amount_value,
-            "prepaid_amount": self.scrape_prepaid(),
+            "prepaid_amount": self.prepaid,
         }
 
         transaction_link = transaction.find_element(By.TAG_NAME, "a")
 
-        if self.table in ["current", "previous"]:
+        if self.command["table"] in ["current", "previous"]:
             self.row_details.update({"link": transaction_link, "amount": amount})
             self.determine_transaction_type(row, label)
 
@@ -85,7 +85,7 @@ class LoopFunctions(LedgerScrape):
         elif is_credit:
             type_update["type"] = "credit"
 
-        special_types = ["late", "metered", "bounced_check", "system_nsf"]
+        special_types = ["late_fee", "metered", "bounced_check", "system_nsf"]
         checks = [
             "late" in label,
             self.check_is_metered(row),
@@ -107,6 +107,7 @@ class LedgerLoop(LoopFunctions):
 
     def loop_through_table(self, rows):
         ledger_info = []
+        self.prepaid = self.scrape_prepaid()
 
         for row in rows:
             if self.browser.skip_row(row, "th3"):
@@ -122,26 +123,26 @@ class LedgerOps(LedgerLoop):
         self.command = command
 
     def retrieve_elements(self):
-        table_xpath = self.choose_table[self.table]
+        table_xpath = self.choose_table[self.command["table"]]
         rows = self.browser.get_rows(By.XPATH, table_xpath)
         table_rows = self.loop_through_table(rows)
         return table_rows
 
-    def click_transaction(self):
+    def click_ledger_element(self):
+        special_type = self.ledger_row.get("special_type", [])
         exclude = self.command.get("exclude", [])
-        if (
-            (self.ledger_row["type"] in self.command["type"])
-            or (self.ledger_row["special_type"] in self.command["type"])
-        ) and (
-            (self.ledger_row["type"] not in exclude)
-            or self.ledger_row["special_type"] not in exclude
-        ):
-            self.browser.click_element(self.ledger_row["link"])
-            return True
+        if self.command["operation"] in ["allocate", "unallocate", "delete"]:
+            if (
+                self.command["type"] == self.ledger_row["type"]
+                or self.command["type"] in special_type
+            ) and (
+                self.ledger_row["type"] not in exclude or special_type not in exclude
+            ):
+                self.browser.click_element(self.ledger_row["link"])
+                return True
 
-    def click_ledger(self):
-        if self.command["operation"] == "credit":
-            self.browser.click(By.XPATH, "//a[contains(., 'Add Credit')]")
+        elif self.command["operation"] in ["credit"]:
+            pass
 
     def return_to_ledger(self):
         if self.browser.driver.current_url != self.current_url:

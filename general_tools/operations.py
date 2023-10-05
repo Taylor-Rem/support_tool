@@ -5,9 +5,11 @@ from resmap.add_credit import AddCreditOps
 
 
 class OperationsBase:
-    def __init__(self, browser):
+    def __init__(self, browser, thread_helper=None):
         self.browser = browser
         self.redstar_master = RedStarMaster(self.browser, "redstar_report")
+        self.thread_helper = thread_helper
+        self.cancelled = False
 
     def init_operation(self, command):
         self.command = command
@@ -15,49 +17,52 @@ class OperationsBase:
         self.perform_operation()
 
     def initialize_classes(self, command):
-        self.transaction_master = TransactionMaster(self.browser, command)
+        self.transaction_master = TransactionMaster(
+            self.browser, command, self.thread_helper
+        )
         self.ledger_master = LedgerMaster(
-            self.browser, command, self.transaction_master
+            self.browser, command, self.thread_helper, self.transaction_master
         )
 
 
 class Operations(OperationsBase):
-    def __init__(self, browser):
-        super().__init__(browser)
-
     def perform_operation(self):
-        month_table = ["allocate", "unallocate", "delete"]
-        general_ledger = ["credit"]
+        if self.command["type"] == "all":
+            self.specific_operations()
+        else:
+            self.ledger_master.ledger_loop()
 
-        if self.command["operation"] in month_table:
-            self.ledger_month_ops("current")
-
-        if self.command["operation"] in general_ledger:
-            self.ledger_master.click_ledger()
-
-    def ledger_month_ops(self, month):
-        self.ledger_master.ledger_loop(month)
+    def specific_operations(self):
+        if self.command["operation"] in ["allocate", "unallocate"]:
+            types = ["payment", "charge"]
+            for transaction_type in types:
+                self.command["type"] = transaction_type
+                self.ledger_master.ledger_loop()
 
 
 class LedgerMaster(LedgerOps):
-    def __init__(self, browser, command, transaction_master):
+    def __init__(self, browser, command, thread_helper, transaction_master):
         super().__init__(browser, command)
         self.transaction_master = transaction_master
         self.current_url = self.browser.driver.current_url
+        self.thread_helper = thread_helper
 
-    def ledger_loop(self, table):
-        self.table = table
+    def ledger_loop(self):
         idx = 0
         self.ledger_info = self.retrieve_elements()
         rows_length = len(self.ledger_info)
         while True:
-            if idx >= rows_length or self.break_early():
+            if (
+                (idx >= rows_length)
+                or (self.break_early())
+                or (self.thread_helper and self.thread_helper.is_cancelled())
+            ):
                 break
             self.ledger_row = self.ledger_info[idx]
             if self.check_nsf():
                 idx += 1
                 continue
-            if self.click_transaction():
+            if self.click_ledger_element():
                 self.transaction_master.transaction_loop(self.ledger_row)
                 self.return_to_ledger()
                 self.ledger_info = self.retrieve_elements()
@@ -67,20 +72,23 @@ class LedgerMaster(LedgerOps):
     def break_early(self):
         if (
             self.command["operation"] == "allocate" and "charge" in self.command["type"]
-        ) and self.ledger_info["prepaid_amount"] <= 0:
+        ) and self.ledger_info[0]["prepaid_amount"] <= 0:
             return True
 
 
 class TransactionMaster(TransactionOps):
-    def __init__(self, browser, command):
+    def __init__(self, browser, command, thread_helper):
         super().__init__(browser, command)
+        self.thread_helper = thread_helper
 
     def transaction_loop(self, ledger_row):
         self.ledger_row = ledger_row
         self.transaction_info = self.retrieve_elements()
         idx = 0
         while True:
-            if idx >= self.transaction_info["rows_length"]:
+            if idx >= self.transaction_info["rows_length"] or (
+                self.thread_helper and self.thread_helper.is_cancelled()
+            ):
                 break
             self.finished_list = idx >= self.transaction_info["rows_length"] - 1
             self.allocation = self.transaction_info["rows"][idx]

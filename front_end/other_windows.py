@@ -1,5 +1,5 @@
 from front_end.helper_windows import HelperWidget
-from front_end.general_windows import LedgerTools
+from front_end.ledger_window import LedgerTools
 from functools import partial
 
 

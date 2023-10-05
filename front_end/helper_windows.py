@@ -2,6 +2,7 @@ from PyQt5.QtWidgets import QVBoxLayout, QLabel
 from front_end.base_widget import BaseWidget
 from general_tools.operations import Operations
 from functools import partial
+from front_end.thread import ThreadHelper
 
 
 class HelperWidget(BaseWidget):
@@ -23,6 +24,20 @@ class HelperWidget(BaseWidget):
     def create_button(self, text, callback):
         return super()._create_button(text, callback, self.layout)
 
+    def run_in_thread(self, func, *args, **kwargs):
+        self.thread_helper = ThreadHelper(func, self.main_app, self, *args, **kwargs)
+        self.thread_helper.finished_signal.connect(self.handle_thread_finished)
+        self.thread_helper.cancelled_signal.connect(self.handle_thread_cancelled)
+        self.thread_helper.start()
+
+    def handle_thread_finished(self):
+        # Implement any behavior you want when the thread finishes
+        print("Thread finished!")
+
+    def handle_thread_cancelled(self):
+        # Implement any behavior you want when the thread is cancelled
+        print("Thread cancelled!")
+
     def go_back(self):
         if self.main_app.previous_widgets:
             last_widget = self.main_app.previous_widgets.pop()
@@ -32,3 +47,8 @@ class HelperWidget(BaseWidget):
 
     def add_back_btn(self):
         self.back_btn = self.create_button("⬅️ Back", self.go_back)
+
+    def closeEvent(self, event):
+        if hasattr(self, "thread_helper") and self.thread_helper.isRunning():
+            self.thread_helper.cancel()
+        event.accept()
