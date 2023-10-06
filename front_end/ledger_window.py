@@ -68,7 +68,7 @@ class LedgerTools(LedgerOperations):
             command["table"] = self.month_selector[
                 self.choose_month_dropdown.currentText()
             ]
-        self.operations.init_operation(command)
+        self.run_in_thread(self.operations.init_operation, command)
         if command["operation"] in ["credit"]:
             command["table"] = "bottom"
             self.create_AIW_with_widgets(command)
@@ -88,4 +88,4 @@ class AdditionalInfoWindow(HelperWidget):
 
     def submit(self, command, input):
         command["comment"] = input.text()
-        self.operations.init_operation(command)
+        self.run_in_thread(self.operations.init_operation, command)

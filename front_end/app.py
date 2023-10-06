@@ -74,5 +74,8 @@ class App(BaseWidget):
         if previous_widget:
             self.previous_widgets.append(self.stack.currentWidget())
 
+    def current_window(self):
+        return self.stack.currentWidget()
+
     def quit_app(self):
         self.close()

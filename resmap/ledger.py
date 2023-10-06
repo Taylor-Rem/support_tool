@@ -74,6 +74,7 @@ class LoopFunctions(LedgerScrape):
 
         if "rule compliance" in label or "credit card" in label:
             is_credit = False
+            is_payment = True
 
         type_update = {}
         special_type_update = {}

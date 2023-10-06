@@ -11,6 +11,7 @@ class HelperWidget(BaseWidget):
         self.operations = Operations(main_app.browser)
         self.main_app = main_app
         self.setWindowTitle(title)
+        self.previous_window = None
 
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
@@ -24,19 +25,20 @@ class HelperWidget(BaseWidget):
     def create_button(self, text, callback):
         return super()._create_button(text, callback, self.layout)
 
-    def run_in_thread(self, func, *args, **kwargs):
-        self.thread_helper = ThreadHelper(func, self.main_app, self, *args, **kwargs)
-        self.thread_helper.finished_signal.connect(self.handle_thread_finished)
-        self.thread_helper.cancelled_signal.connect(self.handle_thread_cancelled)
+    def run_in_thread(self, callback, *args, **kwargs):
+        self.thread_helper = ThreadHelper(callback, *args, **kwargs)
+        self.operations.thread_helper = self.thread_helper
+        self.thread_helper.thread_signal.connect(self.on_thread_finished)
+
+        self.previous_window = self.main_app.current_window()
+        self.cancel_dialog = ThreadRunningWindow(self.main_app, self.thread_helper)
+        self.main_app.switch_window(self.cancel_dialog)
         self.thread_helper.start()
 
-    def handle_thread_finished(self):
-        # Implement any behavior you want when the thread finishes
-        print("Thread finished!")
-
-    def handle_thread_cancelled(self):
-        # Implement any behavior you want when the thread is cancelled
-        print("Thread cancelled!")
+    def on_thread_finished(self, result):
+        self.cancel_dialog.close()
+        if self.previous_window:
+            self.main_app.switch_window(self.previous_window)
 
     def go_back(self):
         if self.main_app.previous_widgets:
@@ -48,7 +50,18 @@ class HelperWidget(BaseWidget):
     def add_back_btn(self):
         self.back_btn = self.create_button("⬅️ Back", self.go_back)
 
-    def closeEvent(self, event):
-        if hasattr(self, "thread_helper") and self.thread_helper.isRunning():
-            self.thread_helper.cancel()
-        event.accept()
+
+class ThreadRunningWindow(HelperWidget):
+    def __init__(self, main_app, thread_helper, title="Running Operation"):
+        super().__init__(main_app, title)
+        self.thread_helper = thread_helper
+
+        self.operation_label = QLabel("Operation is running...", self)
+        self.layout.addWidget(self.operation_label)
+
+        self.cancel_btn = self.create_button("Cancel operation", self.cancel_operation)
+
+    def cancel_operation(self):
+        self.thread_helper.cancel()
+        self.operation_label.setText("Cancelling operation...")
+        self.cancel_btn.setEnabled(False)

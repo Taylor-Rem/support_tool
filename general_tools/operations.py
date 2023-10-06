@@ -7,8 +7,8 @@ from resmap.add_credit import AddCreditOps
 class OperationsBase:
     def __init__(self, browser, thread_helper=None):
         self.browser = browser
-        self.redstar_master = RedStarMaster(self.browser, "redstar_report")
         self.thread_helper = thread_helper
+        self.redstar_master = RedStarMaster(self.browser, "redstar_report")
         self.cancelled = False
 
     def init_operation(self, command):
@@ -44,8 +44,8 @@ class LedgerMaster(LedgerOps):
     def __init__(self, browser, command, thread_helper, transaction_master):
         super().__init__(browser, command)
         self.transaction_master = transaction_master
-        self.current_url = self.browser.driver.current_url
         self.thread_helper = thread_helper
+        self.current_url = self.browser.driver.current_url
 
     def ledger_loop(self):
         idx = 0
@@ -55,7 +55,7 @@ class LedgerMaster(LedgerOps):
             if (
                 (idx >= rows_length)
                 or (self.break_early())
-                or (self.thread_helper and self.thread_helper.is_cancelled())
+                or (self.thread_helper and self.thread_helper._is_cancelled)
             ):
                 break
             self.ledger_row = self.ledger_info[idx]
@@ -87,7 +87,7 @@ class TransactionMaster(TransactionOps):
         idx = 0
         while True:
             if idx >= self.transaction_info["rows_length"] or (
-                self.thread_helper and self.thread_helper.is_cancelled()
+                self.thread_helper and self.thread_helper._is_cancelled
             ):
                 break
             self.finished_list = idx >= self.transaction_info["rows_length"] - 1
