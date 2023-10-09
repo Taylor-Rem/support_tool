@@ -34,10 +34,10 @@ class OSInteract(OSBase):
 
 
 class ReportsBase(OSBase):
-    def __init__(self, report):
+    def __init__(self, document):
         super().__init__()
-        self.reports_path = f"{self.root_path}/{self.day}/{report}"
-        self.full_json_path = f"{self.root_path}/json_reports/{report}"
+        self.reports_path = f"{self.root_path}/{self.day}/{document}"
+        self.full_json_path = f"{self.root_path}/json_reports/{document}"
         self.full_report_path = self.retrieve_file()
 
         self.csv_ops = CsvOperations(self.full_report_path)

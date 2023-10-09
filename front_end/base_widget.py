@@ -16,6 +16,15 @@ class BaseWidget(QWidget):
         layout.addWidget(button)
         return button
 
+    def create_text_input(self, default_text="", label=None):
+        if label:
+            label = QLabel(label)
+            self.layout.addWidget(label)
+        text_input = QLineEdit(self)
+        text_input.setText(default_text)
+        self.layout.addWidget(text_input)
+        return text_input
+
     def create_dropdown(self, items, current_index=0):
         dropdown = QComboBox(self)
         dropdown.addItems(items)
@@ -28,35 +37,33 @@ class BaseWidget(QWidget):
         dropdown.addItems(items)
 
         if callback:
-            dropdown.currentIndexChanged.connect(
-                lambda index: (
-                    callback(
-                        {
-                            "operation": self.get_operation_from_key(
-                                dropdown.currentText()
-                            ),
-                            **self.get_operation_value_from_dropdown(
-                                dropdown.currentText()
-                            ),
-                        }
-                    ),
-                    dropdown.setCurrentIndex(0),
-                )
-                if index != 0
-                else None
-            )
+
+            def index_changed_handler(index):
+                if index != 0:
+                    callback(dropdown.currentText())
+                    dropdown.setCurrentIndex(0)
+
+            dropdown.currentIndexChanged.connect(index_changed_handler)
 
         self.layout.addWidget(dropdown)
         return dropdown
 
-    def create_text_input(self, default_text="", label=None):
-        if label:
-            label = QLabel(label)
-            self.layout.addWidget(label)
-        text_input = QLineEdit(self)
-        text_input.setText(default_text)
-        self.layout.addWidget(text_input)
-        return text_input
+    def configured_ledger_dropdown(self, items, callback=None):
+        def ledger_callback(selected_item):
+            operation_data = self.get_selected_dropdown_item(selected_item)
+            if callback:
+                callback(operation_data)
+
+        return self.create_configured_dropdown(items, ledger_callback)
+
+    def get_selected_dropdown_item(self, dropdown):
+        selected_item = dropdown.currentText()
+        operation = self.get_operation_from_key(selected_item)
+        value = self.get_operation_value_from_dropdown(selected_item)
+        return {
+            "operation": operation,
+            **value,
+        }
 
     def get_operation_from_key(self, key):
         for operation, sub_dict in self.operations_dict.items():

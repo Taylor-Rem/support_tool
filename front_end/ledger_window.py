@@ -44,17 +44,17 @@ class LedgerTools(LedgerOperations):
         self.choose_month_dropdown = self.create_dropdown(
             list(self.month_selector.keys())
         )
-        self.allocate_dropdown = self.create_configured_dropdown(
+        self.allocate_dropdown = self.configured_ledger_dropdown(
             ["Allocate"] + list(self.operations_dict["allocate"].keys()), self.submit
         )
-        self.unallocate_dropdown = self.create_configured_dropdown(
+        self.unallocate_dropdown = self.configured_ledger_dropdown(
             ["Unallocate"] + list(self.operations_dict["unallocate"].keys()),
             self.submit,
         )
-        self.delete_dropdown = self.create_configured_dropdown(
+        self.delete_dropdown = self.configured_ledger_dropdown(
             ["Delete"] + list(self.operations_dict["delete"].keys()), self.submit
         )
-        self.credit_dropdown = self.create_configured_dropdown(
+        self.credit_dropdown = self.configured_ledger_dropdown(
             ["Credit Charges"] + list(self.operations_dict["credit"].keys()),
             self.submit,
         )

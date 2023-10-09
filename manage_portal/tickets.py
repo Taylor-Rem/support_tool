@@ -54,7 +54,13 @@ class TicketScrape:
         else:
             resident = self.interpretation.extract_resident_name(title + description)
 
-        return [title, description, property, unit, resident]
+        return {
+            "title": title,
+            "description": description,
+            "property": property,
+            "unit": unit,
+            "resident": resident,
+        }
 
 
 class TicketOperations(TicketScrape):

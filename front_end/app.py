@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import QVBoxLayout, QWidget, QStackedWidget
 from functools import partial
 from general_tools.browser import Browser
 from front_end.base_widget import BaseWidget
-from front_end.other_windows import RedstarHelper, TicketHelper
+from front_end.other_windows import RedstarHelper, TicketHelper, LedgerWindow
 
 
 class App(BaseWidget):
@@ -22,12 +22,18 @@ class App(BaseWidget):
         self.add_widgets()
 
     def init_windows(self):
+        self.ledger_window = LedgerWindow(self)
         self.redstar_helper = RedstarHelper(self)
         self.ticket_helper = TicketHelper(self)
         self.init_main_window()
 
     def add_widgets(self):
-        windows = [self.main_window, self.redstar_helper, self.ticket_helper]
+        windows = [
+            self.main_window,
+            self.ledger_window,
+            self.redstar_helper,
+            self.ticket_helper,
+        ]
         for window in windows:
             self.stack.addWidget(window)
 

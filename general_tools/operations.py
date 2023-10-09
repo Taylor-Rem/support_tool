@@ -2,6 +2,8 @@ from general_tools.os_ops import ReportsBase
 from resmap.ledger import LedgerOps
 from resmap.transaction import TransactionOps
 from resmap.add_credit import AddCreditOps
+from resmap.navigation import ResmapNav
+from manage_portal.tickets import TicketOperations
 
 
 class OperationsBase:
@@ -10,6 +12,8 @@ class OperationsBase:
         self.thread_helper = thread_helper
         self.redstar_master = RedStarMaster(self.browser, "redstar_report")
         self.cancelled = False
+        self.ticket_master = TicketMaster(self.browser)
+        self.resmap_nav = ResmapNavMaster(self.browser, None)
 
     def init_operation(self, command):
         self.command = command
@@ -38,6 +42,28 @@ class Operations(OperationsBase):
             for transaction_type in types:
                 self.command["type"] = transaction_type
                 self.ledger_master.ledger_loop()
+
+    def open_ticket(self, location):
+        self.browser.switch_to_primary_tab()
+        self.resmap_nav.info = self.ticket_master.scrape_ticket()
+        self.resmap_nav.resmap_nav(location.lower())
+
+
+class TicketMaster(TicketOperations):
+    def __init__(self, browser):
+        super().__init__(browser)
+
+
+class ResmapNavMaster(ResmapNav):
+    def __init__(self, browser, info):
+        super().__init__(browser, info)
+
+    def resmap_nav(self, location):
+        self.nav_to_unit()
+        if location == "ledger":
+            self.open_ledger()
+        if location == "resident":
+            pass
 
 
 class LedgerMaster(LedgerOps):
