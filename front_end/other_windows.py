@@ -1,28 +1,72 @@
-from front_end.helper_windows import HelperWidget
-from front_end.ledger_window import LedgerTools
+from front_end.operations_window import OperationsHelper
 from functools import partial
+from PyQt5.QtWidgets import QHBoxLayout
+from front_end.helper_windows import AdditionalInfoWindow
 
 
-class TicketHelper(HelperWidget):
+class LedgerTools(OperationsHelper):
+    def __init__(self, main_app, title=None):
+        if not title:
+            title = "Ledger Tools"
+        super().__init__(main_app, title)
+        self.additional_info_window = AdditionalInfoWindow(main_app)
+
+    def create_ledger_tools(self):
+        self.choose_month_dropdown = self.create_dropdown(
+            list(self.month_selector.keys())
+        )
+        self.allocate_dropdown = self.configured_operations_dropdown(
+            ["Allocate"] + list(self.operations_dict["allocate"].keys()), self.submit
+        )
+        self.unallocate_dropdown = self.configured_operations_dropdown(
+            ["Unallocate"] + list(self.operations_dict["unallocate"].keys()),
+            self.submit,
+        )
+        self.delete_dropdown = self.configured_operations_dropdown(
+            ["Delete"] + list(self.operations_dict["delete"].keys()), self.submit
+        )
+        self.credit_dropdown = self.configured_operations_dropdown(
+            ["Credit Charges"] + list(self.operations_dict["credit"].keys()),
+            self.submit,
+        )
+
+    def create_AIW_with_widgets(self, command):
+        self.additional_info_window.create_additional_info_widgets(command)
+        self.main_app.switch_window(self.additional_info_window)
+
+    def submit(self, command):
+        if command["operation"] in ["allocate", "unallocate", "delete"]:
+            command["table"] = self.month_selector[
+                self.choose_month_dropdown.currentText()
+            ]
+            self.run_in_thread(self.operations.init_operation, command)
+        if command["operation"] in ["credit"]:
+            command["table"] = "bottom"
+            self.create_AIW_with_widgets(command)
+
+
+class TicketHelper(OperationsHelper):
     def __init__(self, main_app):
         super().__init__(main_app, "Ticket Helper")
-        self.open_ticket_dropdown = self.create_configured_dropdown(
-            ["Open Ticket", "Ledger", "Unit", "Resident"], self._open_ticket
+        self.open_ticket_dropdown = self.configured_operations_dropdown(
+            ["Open Ticket"] + list(self.operations_dict["open_ticket"].keys()),
+            self.submit,
         )
-        self.resolve_dropdown = self.create_configured_dropdown(
-            ["Resolve Ticket", "Resolve", "In Progress", "Unresolve"],
-            self.operations.ticket_master.change_ticket_status,
+        self.resolve_dropdown = self.configured_operations_dropdown(
+            ["Resolve Ticket"] + list(self.operations_dict["resolve_ticket"].keys()),
+            self.submit,
         )
         self.add_back_btn()
 
-    def _open_ticket(self, location):
-        self.operations.open_ticket(location)
-        self.main_app.switch_window(self.main_app.ledger_window)
+    def submit(self, command):
+        self.operations.init_operation(command)
+        if command["operation"] == "open_ticket":
+            self.main_app.switch_window(self.main_app.ledger_window)
 
 
 class LedgerWindow(LedgerTools):
     def __init__(self, main_app):
-        super().__init__(main_app, "Ledger Tools")
+        super().__init__(main_app)
         self.create_ledger_tools()
         self.add_back_btn()
 
@@ -30,11 +74,24 @@ class LedgerWindow(LedgerTools):
 class RedstarHelper(LedgerTools):
     def __init__(self, main_app):
         super().__init__(main_app, "Red Star Helper")
-        self.next_btn = self.create_button(
-            "Next", partial(self.operations.redstar_master.cycle_ledger, "next")
-        )
+
+        # Create a QHBoxLayout for the buttons
+        buttons_layout = QHBoxLayout()
+
+        # Add "Prev" button to the horizontal layout
         self.prev_btn = self.create_button(
-            "Prev", self.operations.redstar_master.cycle_ledger
+            "< Prev", partial(self.operations.open_redstars, False)
         )
+        buttons_layout.addWidget(self.prev_btn)
+
+        # Add "Next" button to the horizontal layout
+        self.next_btn = self.create_button(
+            "Next >", partial(self.operations.open_redstars, True)
+        )
+        buttons_layout.addWidget(self.next_btn)
+
+        # Add the QHBoxLayout to the main layout
+        self.layout.addLayout(buttons_layout)
+
         self.create_ledger_tools()
         self.add_back_btn()

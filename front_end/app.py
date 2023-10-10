@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QVBoxLayout, QWidget, QStackedWidget
+from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QWidget, QStackedWidget
 from functools import partial
 from general_tools.browser import Browser
 from front_end.base_widget import BaseWidget
@@ -16,9 +16,9 @@ class App(BaseWidget):
 
     def initUI(self):
         self.setWindowTitle("Support Master")
-        layout = QVBoxLayout()
-        layout.addWidget(self.stack)
-        self.setLayout(layout)
+        self.layout = QVBoxLayout()
+        self.layout.addWidget(self.stack)
+        self.setLayout(self.layout)
         self.add_widgets()
 
     def init_windows(self):
@@ -65,9 +65,10 @@ class App(BaseWidget):
             for config in button_configs
         ]
 
-    def switch_window(self, window, open_program=None):
+    def switch_window(self, window, open_program=None, add_to_previous=True):
         self.add_window_to_stack(window)
-        self.append_to_previous()
+        if add_to_previous:
+            self.append_to_previous()
         self.stack.setCurrentWidget(window)
         if open_program:
             self.browser.open_program(open_program)

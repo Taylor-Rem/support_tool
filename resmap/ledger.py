@@ -61,9 +61,8 @@ class LoopFunctions(LedgerScrape):
             "prepaid_amount": self.prepaid,
         }
 
-        transaction_link = transaction.find_element(By.TAG_NAME, "a")
-
         if self.command["table"] in ["current", "previous"]:
+            transaction_link = transaction.find_element(By.TAG_NAME, "a")
             self.row_details.update({"link": transaction_link, "amount": amount})
             self.determine_transaction_type(row, label)
 
@@ -130,20 +129,23 @@ class LedgerOps(LedgerLoop):
         return table_rows
 
     def click_ledger_element(self):
-        special_type = self.ledger_row.get("special_type", [])
-        exclude = self.command.get("exclude", [])
         if self.command["operation"] in ["allocate", "unallocate", "delete"]:
-            if (
-                self.command["type"] == self.ledger_row["type"]
-                or self.command["type"] in special_type
-            ) and (
-                self.ledger_row["type"] not in exclude or special_type not in exclude
-            ):
-                self.browser.click_element(self.ledger_row["link"])
-                return True
+            special_type = self.ledger_row.get("special_type", [])
+            exclude = self.command.get("exclude", [])
+            for command_type in self.command["type"]:
+                if (
+                    command_type == self.ledger_row["type"]
+                    or command_type in special_type
+                ) and (
+                    self.ledger_row["type"] not in exclude
+                    or special_type not in exclude
+                ):
+                    self.browser.click_element(self.ledger_row["link"])
+                    return True
 
         elif self.command["operation"] in ["credit"]:
-            pass
+            self.browser.click(By.XPATH, "(.//a[text()='Add Credit'])[last()]")
+            return True
 
     def return_to_ledger(self):
         if self.browser.driver.current_url != self.current_url:

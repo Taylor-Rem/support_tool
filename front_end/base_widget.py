@@ -40,7 +40,8 @@ class BaseWidget(QWidget):
 
             def index_changed_handler(index):
                 if index != 0:
-                    callback(dropdown.currentText())
+                    # Pass dropdown directly here
+                    callback(dropdown)
                     dropdown.setCurrentIndex(0)
 
             dropdown.currentIndexChanged.connect(index_changed_handler)
@@ -48,15 +49,15 @@ class BaseWidget(QWidget):
         self.layout.addWidget(dropdown)
         return dropdown
 
-    def configured_ledger_dropdown(self, items, callback=None):
-        def ledger_callback(selected_item):
-            operation_data = self.get_selected_dropdown_item(selected_item)
+    def configured_operations_dropdown(self, items, callback=None):
+        def ledger_callback(dropdown):
+            operation_data = self.get_selected_dropdown_item(dropdown)
             if callback:
                 callback(operation_data)
 
         return self.create_configured_dropdown(items, ledger_callback)
 
-    def get_selected_dropdown_item(self, dropdown):
+    def get_selected_dropdown_item(self, dropdown: QComboBox):
         selected_item = dropdown.currentText()
         operation = self.get_operation_from_key(selected_item)
         value = self.get_operation_value_from_dropdown(selected_item)

@@ -37,9 +37,9 @@ class ResmapNav(ResmapNavScrape):
 
     def open_ledger(self):
         current_resident_is_resident = self.browser.find_element(
-            By.XPATH, f".//a[contains(text(), '{self.info['unit']}')]"
+            By.XPATH, f".//a[contains(text(), '{self.info['resident']}')]"
         )
-        if current_resident_is_resident:
+        if current_resident_is_resident or self.info["resident"] is None:
             self.browser.click(By.XPATH, ".//a[text()='Ledger']")
         else:
             self.browser.click(

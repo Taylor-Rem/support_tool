@@ -64,16 +64,17 @@ class TicketScrape:
 
 
 class TicketOperations(TicketScrape):
-    def __init__(self, browser):
+    def __init__(self, browser, command):
         super().__init__(browser)
+        self.command = command
         self.icons = {
-            "Resolve": "done_outline",
-            "In Progress": "scatter_plot",
-            "Unresolve": "error",
+            "resolve": "done_outline",
+            "in_progress": "scatter_plot",
+            "unresolve": "error",
             "Back": "arrow_back",
         }
 
-    def change_ticket_status(self, selection):
+    def change_ticket_status(self):
         resolve_ticket_btn = self.browser.wait_for_presence_of_element(
             By.XPATH, "//button[contains(., 'Change Ticket Status')]"
         )
@@ -81,11 +82,14 @@ class TicketOperations(TicketScrape):
 
         resolution_btn = self.browser.wait_for_element_clickable(
             By.XPATH,
-            f"//button[.//i[contains(@class, 'material-icons') and text()='{self.icons[selection]}']]",
+            f"//button[.//i[contains(@class, 'material-icons') and text()='{self.icons[self.command['selection']]}']]",
         )
         self.browser.click_element(resolution_btn)
 
-        back = selection == "In Progress" or selection == "Unresolve"
+        back = (
+            self.command["selection"] == "In Progress"
+            or self.command["selection"] == "Unresolve"
+        )
 
         if back:
             back_btn = self.browser.wait_for_element_clickable(

@@ -88,7 +88,7 @@ class TextInterpreter(BaseInterpreter):
         names = [ent.text for ent in doc.ents if ent.label_ == "PERSON"]
         full_names = [name.split() for name in names if len(name.split()) >= 2]
         if full_names:
-            return full_names[0][0], full_names[0][-1]
+            return f"{full_names[0][0]} {full_names[0][-1]}"
         return None
 
     def extract_month(self, text):

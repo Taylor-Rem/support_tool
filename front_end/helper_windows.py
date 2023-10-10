@@ -22,8 +22,10 @@ class HelperWidget(BaseWidget):
         self.button_layout = QVBoxLayout()
         self.layout.addLayout(self.button_layout)
 
-    def create_button(self, text, callback):
-        return super()._create_button(text, callback, self.layout)
+    def create_button(self, text, callback, target_layout=None):
+        if not target_layout:
+            target_layout = self.layout
+        return super()._create_button(text, callback, target_layout)
 
     def run_in_thread(self, callback, *args, **kwargs):
         self.thread_helper = ThreadHelper(callback, *args, **kwargs)
@@ -32,13 +34,13 @@ class HelperWidget(BaseWidget):
 
         self.previous_window = self.main_app.current_window()
         self.cancel_dialog = ThreadRunningWindow(self.main_app, self.thread_helper)
-        self.main_app.switch_window(self.cancel_dialog)
+        self.main_app.switch_window(self.cancel_dialog, add_to_previous=False)
         self.thread_helper.start()
 
     def on_thread_finished(self, result):
         self.cancel_dialog.close()
         if self.previous_window:
-            self.main_app.switch_window(self.previous_window)
+            self.main_app.stack.setCurrentWidget(self.previous_window)
 
     def go_back(self):
         if self.main_app.previous_widgets:
@@ -65,3 +67,20 @@ class ThreadRunningWindow(HelperWidget):
         self.thread_helper.cancel()
         self.operation_label.setText("Cancelling operation...")
         self.cancel_btn.setEnabled(False)
+
+
+class AdditionalInfoWindow(HelperWidget):
+    def __init__(self, main_app, command=None):
+        super().__init__(main_app, "Additional Info")
+        if command:
+            self.create_additional_info_widgets(command)
+
+    def create_additional_info_widgets(self, command):
+        for widget in command["widgets"]:
+            if widget == "text_input":
+                comment = self.create_text_input("Enter Comment")
+        self.create_button("Submit", partial(self.submit, command, comment))
+
+    def submit(self, command, input):
+        command["comment"] = input.text()
+        self.run_in_thread(self.operations.init_operation, command)
