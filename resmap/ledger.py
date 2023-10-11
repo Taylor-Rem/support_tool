@@ -56,7 +56,7 @@ class LoopFunctions(LedgerScrape):
         amount_value = self.browser.get_number_from_inner_html(amount)
 
         self.row_details = {
-            "transaction_label": label,
+            "label": label,
             "amount_value": amount_value,
             "prepaid_amount": self.prepaid,
         }
@@ -128,24 +128,21 @@ class LedgerOps(LedgerLoop):
         table_rows = self.loop_through_table(rows)
         return table_rows
 
-    def click_ledger_element(self):
-        if self.command["operation"] in ["allocate", "unallocate", "delete"]:
-            special_type = self.ledger_row.get("special_type", [])
-            exclude = self.command.get("exclude", [])
-            for command_type in self.command["type"]:
-                if (
-                    command_type == self.ledger_row["type"]
-                    or command_type in special_type
-                ) and (
-                    self.ledger_row["type"] not in exclude
-                    or special_type not in exclude
-                ):
-                    self.browser.click_element(self.ledger_row["link"])
-                    return True
+    def click_ledger_table(self):
+        special_type = self.ledger_row.get("special_type", [])
+        exclude = self.command.get("exclude", [])
+        for command_type in self.command["type"]:
+            if (
+                command_type == self.ledger_row["type"] or command_type in special_type
+            ) and (
+                self.ledger_row["type"] not in exclude or special_type not in exclude
+            ):
+                self.browser.click_element(self.ledger_row["link"])
+                return "table"
 
-        elif self.command["operation"] in ["credit"]:
-            self.browser.click(By.XPATH, "(.//a[text()='Add Credit'])[last()]")
-            return True
+    def click_ledger_credit(self):
+        self.browser.click(By.XPATH, "(.//a[text()='Add Credit'])[last()]")
+        return "credit"
 
     def return_to_ledger(self):
         if self.browser.driver.current_url != self.current_url:

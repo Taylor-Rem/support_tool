@@ -129,13 +129,10 @@ class TransactionOps(TransactionLoop):
                 self.clear_element(self.allocation["input"], True)
                 return "reload"
 
-        if self.command["operation"] == "delete":
-            try:
-                self.browser.click(By.NAME, "delete")
-                alert = self.browser.driver.switch_to.alert
-                alert.accept()
-            except:
-                return "break"
+    def delete(self):
+        self.browser.click(By.NAME, "delete")
+        alert = self.browser.driver.switch_to.alert
+        alert.accept()
 
     def clear_element(self, input_element, enter):
         self.browser.send_keys_to_element(input_element, Keys.CONTROL + "a", False)

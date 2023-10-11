@@ -10,108 +10,108 @@ class OperationsHelper(HelperWidget):
                 "Allocate All": {
                     "operation": "allocate",
                     "type": ["all"],
-                    "tool": "ledger",
+                    "tools": ["ledger", "table"],
                 },
                 "Allocate Payments": {
                     "operation": "allocate",
                     "type": ["payment"],
-                    "tool": "ledger",
+                    "tools": ["ledger", "table"],
                 },
                 "Allocate Charges": {
                     "operation": "allocate",
                     "type": ["charge"],
-                    "tool": "ledger",
+                    "tools": ["ledger", "table"],
                 },
             },
             "unallocate": {
                 "Unallocate All": {
                     "operation": "unallocate",
                     "type": ["all"],
-                    "tool": "ledger",
+                    "tools": ["ledger", "table"],
                 },
                 "Unallocate Payments": {
                     "operation": "unallocate",
                     "type": ["payment"],
-                    "tool": "ledger",
+                    "tools": ["ledger", "table"],
                 },
                 "Unallocate Charges": {
                     "operation": "unallocate",
                     "type": ["charge"],
-                    "tool": "ledger",
+                    "tools": ["ledger", "table"],
                 },
             },
             "delete": {
                 "Delete All": {
                     "operation": "delete",
                     "type": ["credit", "charge"],
-                    "tool": "ledger",
+                    "tools": ["ledger", "table"],
                 },
                 "Delete Charges": {
                     "operation": "delete",
                     "type": ["charge"],
-                    "tool": "ledger",
+                    "tools": ["ledger", "table"],
                 },
                 "Delete Credits": {
                     "operation": "delete",
                     "type": ["credit"],
-                    "tool": "ledger",
+                    "tools": ["ledger", "table"],
                 },
                 "Delete Late Fees": {
                     "operation": "delete",
                     "type": ["late_fee"],
-                    "tool": "ledger",
+                    "tools": ["ledger", "table"],
                 },
                 "Delete Except Metered": {
                     "operation": "delete",
                     "type": ["credit", "charge"],
                     "exclude": "metered",
-                    "tool": "ledger",
+                    "tools": ["ledger", "table"],
                 },
             },
             "credit": {
                 "Credit": {
                     "operation": "credit",
                     "widgets": ["text_input"],
-                    "tool": "ledger",
+                    "tools": ["ledger", "credit"],
                 },
                 "Concession": {
                     "operation": "concession",
                     "widgets": ["text_input"],
-                    "tool": "ledger",
+                    "tools": ["ledger", "credit"],
                 },
             },
             "open_ticket": {
                 "Ledger": {
                     "operation": "open_ticket",
                     "selection": "ledger",
-                    "tool": "ticket",
+                    "tools": "ticket",
                 },
                 "Unit": {
                     "operation": "open_ticket",
                     "selection": "unit",
-                    "tool": "ticket",
+                    "tools": "ticket",
                 },
                 "Resident": {
                     "operation": "open_ticket",
                     "selection": "resident",
-                    "tool": "ticket",
+                    "tools": "ticket",
                 },
             },
             "resolve_ticket": {
                 "Resolve": {
                     "operation": "resolve_ticket",
                     "selection": "resolve",
-                    "tool": "ticket",
+                    "tools": "ticket",
                 },
                 "In Progress": {
                     "operation": "resolve_ticket",
                     "selection": "in_progress",
-                    "tool": "ticket",
+                    "tools": "ticket",
                 },
                 "Unresolve": {
                     "operation": "resolve_ticket",
                     "selection": "unresolve",
-                    "tool": "ticket",
+                    "tools": "ticket",
                 },
             },
         }

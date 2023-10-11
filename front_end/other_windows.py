@@ -31,10 +31,11 @@ class LedgerTools(OperationsHelper):
         )
 
     def create_AIW_with_widgets(self, command):
-        self.additional_info_window.create_additional_info_widgets(command)
+        self.additional_info_window = AdditionalInfoWindow(self.main_app, command)
         self.main_app.switch_window(self.additional_info_window)
 
     def submit(self, command):
+        command["window"] = self.main_app.current_window()
         if command["operation"] in ["allocate", "unallocate", "delete"]:
             command["table"] = self.month_selector[
                 self.choose_month_dropdown.currentText()

@@ -28,19 +28,17 @@ class HelperWidget(BaseWidget):
         return super()._create_button(text, callback, target_layout)
 
     def run_in_thread(self, callback, *args, **kwargs):
+        self.command = args[0]
         self.thread_helper = ThreadHelper(callback, *args, **kwargs)
         self.operations.thread_helper = self.thread_helper
         self.thread_helper.thread_signal.connect(self.on_thread_finished)
-
-        self.previous_window = self.main_app.current_window()
         self.cancel_dialog = ThreadRunningWindow(self.main_app, self.thread_helper)
         self.main_app.switch_window(self.cancel_dialog, add_to_previous=False)
         self.thread_helper.start()
 
     def on_thread_finished(self, result):
         self.cancel_dialog.close()
-        if self.previous_window:
-            self.main_app.stack.setCurrentWidget(self.previous_window)
+        self.main_app.stack.setCurrentWidget(self.command["window"])
 
     def go_back(self):
         if self.main_app.previous_widgets:
@@ -60,7 +58,6 @@ class ThreadRunningWindow(HelperWidget):
 
         self.operation_label = QLabel("Operation is running...", self)
         self.layout.addWidget(self.operation_label)
-
         self.cancel_btn = self.create_button("Cancel operation", self.cancel_operation)
 
     def cancel_operation(self):
@@ -74,6 +71,7 @@ class AdditionalInfoWindow(HelperWidget):
         super().__init__(main_app, "Additional Info")
         if command:
             self.create_additional_info_widgets(command)
+            self.add_back_btn()
 
     def create_additional_info_widgets(self, command):
         for widget in command["widgets"]:
