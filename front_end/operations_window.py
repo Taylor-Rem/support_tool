@@ -61,10 +61,10 @@ class OperationsHelper(HelperWidget):
                     "type": ["late_fee"],
                     "tools": ["ledger", "table"],
                 },
-                "Delete Except Metered": {
+                "Delete All Except": {
                     "operation": "delete",
                     "type": ["credit", "charge"],
-                    "exclude": "metered",
+                    "widgets": ["dropdown", "text_input"],
                     "tools": ["ledger", "table"],
                 },
             },

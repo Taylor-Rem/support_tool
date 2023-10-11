@@ -11,6 +11,7 @@ class OperationsBase:
         self.browser = browser
         self.thread_helper = thread_helper
         self.cancelled = False
+        self.redstar_master = RedStarMaster(self.browser, "redstar_report")
 
     def init_operation(self, command):
         self.command = command
@@ -55,9 +56,8 @@ class Operations(OperationsBase):
             self.command["type"] = transaction_type
             self.ledger_master.ledger_loop()
 
-    def open_redstars(self, next):
-        self.redstar_master = RedStarMaster(self.browser, "redstar_report")
-        self.redstar_master.cycle_ledger(next)
+    def open_redstars(self, next_ledger):
+        self.redstar_master.cycle_ledger(next_ledger)
 
 
 class LedgerMaster(LedgerOps):
@@ -66,46 +66,61 @@ class LedgerMaster(LedgerOps):
         self.click_location = click_location
         self.thread_helper = thread_helper
         self.current_url = self.browser.driver.current_url
-        self.is_ledger_command = self.command["operation"] in [
-            "allocate",
-            "unallocate",
-            "delete",
-        ]
 
     def ledger_loop(self):
-        idx = 0
-        self.ledger_info = self.retrieve_elements()
-        rows_length = len(self.ledger_info)
+        self.idx = 0
+        self.refresh_ledger_info()
         while True:
-            if (idx >= rows_length) or (self.break_early()):
+            if self.break_early():
                 break
-            self.ledger_row = self.ledger_info[idx]
-            if self.check_nsf():
-                idx += 1
+            self.ledger_row = self.ledger_info[self.idx]
+            if self.continue_loop():
                 continue
-            result = (
-                self.click_ledger_table()
-                if self.is_ledger_command
-                else self.click_ledger_credit()
-            )
-            if result:
-                self.click_location.operation(self.ledger_row)
+            if self.perform_operation():
                 self.return_to_ledger()
                 try:
-                    self.ledger_info = self.retrieve_elements()
-                    rows_length = len(self.ledger_info)
+                    self.refresh_ledger_info()
                 except:
                     break
-            idx += 1
+            self.idx += 1
+
+    def perform_operation(self):
+        result = (
+            self.click_ledger_credit()
+            if self.command["operation"] == "credit"
+            else self.click_ledger_table()
+        )
+        if result:
+            if self.command["operation"] == "delete":
+                self.click_location.delete()
+            if self.command["operation"] in ["credit", "delete"]:
+                self.idx -= 1
+            if self.command["operation"] in ["allocate", "unallocate", "credit"]:
+                self.click_location.operation(self.ledger_row)
+            return True
+
+    def refresh_ledger_info(self):
+        self.ledger_info = self.retrieve_elements()
+        self.rows_length = len(self.ledger_info)
+
+    def continue_loop(self):
+        if self.check_nsf() or (
+            self.ledger_row.get("link") is None
+            and self.command["operation"] != "credit"
+        ):
+            self.idx += 1
+            return True
 
     def break_early(self):
         if (
-            (
+            (self.thread_helper and self.thread_helper._is_cancelled)
+            or (self.idx >= self.rows_length)
+            or (
                 self.command["operation"] == "allocate"
                 and "charge" in self.command["type"]
+                and self.ledger_info[0]["prepaid_amount"] <= 0
             )
-            and self.ledger_info[0]["prepaid_amount"] <= 0
-        ) or (self.thread_helper and self.thread_helper._is_cancelled):
+        ):
             return True
 
 
@@ -115,28 +130,28 @@ class TransactionMaster(TransactionOps):
         self.thread_helper = thread_helper
 
     def operation(self, row):
-        if self.command["operation"] == "delete":
-            self.delete()
-            return
         self.ledger_row = row
-        self.transaction_info = self.retrieve_elements()
-        idx = 0
+        self.idx = 0
+        self.refresh_transaction_info()
         while True:
-            if idx >= self.transaction_info["rows_length"] or (
+            if self.idx >= self.transaction_info["rows_length"] or (
                 self.thread_helper and self.thread_helper._is_cancelled
             ):
                 break
-            self.finished_list = idx >= self.transaction_info["rows_length"] - 1
-            self.allocation = self.transaction_info["rows"][idx]
+            self.finished_list = self.idx >= self.transaction_info["rows_length"] - 1
+            self.allocation = self.transaction_info["rows"][self.idx]
             operation_result = self.perform_transaction_op()
             if operation_result == "break":
                 break
             if operation_result == "continue":
                 continue
             if operation_result == "reload":
-                self.transaction_info = self.retrieve_elements()
+                self.refresh_transaction_info()
                 continue
-            idx += 1
+            self.idx += 1
+
+    def refresh_transaction_info(self):
+        self.transaction_info = self.retrieve_elements()
 
 
 class CreditMaster(CreditOps):
@@ -152,10 +167,10 @@ class RedStarMaster(ReportsBase):
     def __init__(self, browser, report):
         super().__init__(report)
         self.browser = browser
-        self.redstar_idx = -1
+        self.redstar_idx = 0
 
-    def cycle_ledger(self, next):
-        self.redstar_idx = self.redstar_idx + 1 if next else self.redstar_idx - 1
+    def cycle_ledger(self, next_ledger):
+        self.redstar_idx = self.redstar_idx + 1 if next_ledger else self.redstar_idx - 1
         self.open_redstar_ledger()
 
     def open_redstar_ledger(self):

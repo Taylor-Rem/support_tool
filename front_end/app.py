@@ -79,7 +79,9 @@ class App(BaseWidget):
 
     def append_to_previous(self, previous_widget=True):
         if previous_widget:
-            self.previous_widgets.append(self.stack.currentWidget())
+            current = self.stack.currentWidget()
+            if not self.previous_widgets or current != self.previous_widgets[-1]:
+                self.previous_widgets.append(current)
 
     def current_window(self):
         return self.stack.currentWidget()

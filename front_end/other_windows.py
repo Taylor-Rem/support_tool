@@ -2,6 +2,7 @@ from front_end.operations_window import OperationsHelper
 from functools import partial
 from PyQt5.QtWidgets import QHBoxLayout
 from front_end.helper_windows import AdditionalInfoWindow
+from general_tools.general_info import GeneralInfo
 
 
 class LedgerTools(OperationsHelper):
@@ -10,11 +11,14 @@ class LedgerTools(OperationsHelper):
             title = "Ledger Tools"
         super().__init__(main_app, title)
         self.additional_info_window = AdditionalInfoWindow(main_app)
+        self.general_info = GeneralInfo()
+        self.previous_closed = self.general_info.day >= 15
 
     def create_ledger_tools(self):
-        self.choose_month_dropdown = self.create_dropdown(
-            list(self.month_selector.keys())
-        )
+        if not self.previous_closed:
+            self.choose_month_dropdown = self.create_dropdown(
+                list(self.month_selector.keys())
+            )
         self.allocate_dropdown = self.configured_operations_dropdown(
             ["Allocate"] + list(self.operations_dict["allocate"].keys()), self.submit
         )
@@ -36,14 +40,17 @@ class LedgerTools(OperationsHelper):
 
     def submit(self, command):
         command["window"] = self.main_app.current_window()
-        if command["operation"] in ["allocate", "unallocate", "delete"]:
-            command["table"] = self.month_selector[
-                self.choose_month_dropdown.currentText()
-            ]
-            self.run_in_thread(self.operations.init_operation, command)
-        if command["operation"] in ["credit"]:
-            command["table"] = "bottom"
+        command["table"] = (
+            self.month_selector[self.choose_month_dropdown.currentText()]
+            if not self.previous_closed
+            else "current"
+        )
+        if command.get("widgets", None):
+            if command["operation"] == "credit":
+                command["table"] = "bottom"
             self.create_AIW_with_widgets(command)
+            return
+        self.run_in_thread(self.operations.init_operation, command)
 
 
 class TicketHelper(OperationsHelper):

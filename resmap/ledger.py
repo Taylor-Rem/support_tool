@@ -62,7 +62,10 @@ class LoopFunctions(LedgerScrape):
         }
 
         if self.command["table"] in ["current", "previous"]:
-            transaction_link = transaction.find_element(By.TAG_NAME, "a")
+            try:
+                transaction_link = transaction.find_element(By.CSS_SELECTOR, "a.a5")
+            except:
+                transaction_link = None
             self.row_details.update({"link": transaction_link, "amount": amount})
             self.determine_transaction_type(row, label)
 
@@ -138,7 +141,7 @@ class LedgerOps(LedgerLoop):
                 self.ledger_row["type"] not in exclude or special_type not in exclude
             ):
                 self.browser.click_element(self.ledger_row["link"])
-                return "table"
+                return True
 
     def click_ledger_credit(self):
         self.browser.click(By.XPATH, "(.//a[text()='Add Credit'])[last()]")
