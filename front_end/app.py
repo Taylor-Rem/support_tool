@@ -56,7 +56,7 @@ class App(BaseWidget):
                 "method": partial(
                     self.switch_window,
                     self.ticket_helper,
-                    self.browser.manageportal_url,
+                    self.browser.supportdesk_url,
                 ),
             },
         ]

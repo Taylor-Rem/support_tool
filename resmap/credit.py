@@ -23,11 +23,11 @@ class CreditOps(CreditScrape):
 
     def fill_select(self):
         selection = (
-            f"{self.credit_row['label']} Concession"
-            if self.command["operation"] == "concession"
+            f"{self.credit_row['label']} concession"
+            if self.command["selection"] == "concession"
             and (
-                self.credit_row["label"] == "Rent"
-                or self.credit_row["label"] == "Home Rental"
+                self.credit_row["label"] == "rent"
+                or self.credit_row["label"] == "home rental"
             )
             else self.credit_row["label"]
         )

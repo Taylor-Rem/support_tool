@@ -3,6 +3,7 @@ from resmap.ledger import LedgerOps
 from resmap.transaction import TransactionOps
 from resmap.credit import CreditOps
 from resmap.navigation import ResmapNav
+from manage_portal.support_desk import SupportDeskOperations
 from manage_portal.tickets import TicketOperations
 
 
@@ -23,6 +24,9 @@ class OperationsBase:
             self.resmap_nav_master = ResmapNavMaster(self.browser, self.command, None)
             self.ticket_master = TicketMaster(
                 self.browser, self.command, self.resmap_nav_master
+            )
+            self.supportdesk_master = SupportDeskMaster(
+                self.browser, self.command, self.ticket_master
             )
         if "ledger" in self.command["tools"]:
             if "table" in self.command["tools"]:
@@ -78,10 +82,8 @@ class LedgerMaster(LedgerOps):
                 continue
             if self.perform_operation():
                 self.return_to_ledger()
-                try:
-                    self.refresh_ledger_info()
-                except:
-                    break
+                if not self.refresh_ledger_info():
+                    return
             self.idx += 1
 
     def perform_operation(self):
@@ -98,10 +100,6 @@ class LedgerMaster(LedgerOps):
             if self.command["operation"] in ["allocate", "unallocate", "credit"]:
                 self.click_location.operation(self.ledger_row)
             return True
-
-    def refresh_ledger_info(self):
-        self.ledger_info = self.retrieve_elements()
-        self.rows_length = len(self.ledger_info)
 
     def continue_loop(self):
         if self.check_nsf() or (
@@ -120,6 +118,7 @@ class LedgerMaster(LedgerOps):
                 and "charge" in self.command["type"]
                 and self.ledger_info[0]["prepaid_amount"] <= 0
             )
+            or self.rows_length == 0
         ):
             return True
 
@@ -179,6 +178,11 @@ class RedStarMaster(ReportsBase):
         self.browser.driver.get(url)
 
 
+class SupportDeskMaster(SupportDeskOperations):
+    def __init__(self, browser, command, ticket_master):
+        super().__init__(browser)
+
+
 class TicketMaster(TicketOperations):
     def __init__(self, browser, command, resmap_nav_master):
         super().__init__(browser, command)
@@ -206,4 +210,4 @@ class ResmapNavMaster(ResmapNav):
         if self.command["selection"] == "ledger":
             self.open_ledger()
         if self.command["selection"] == "resident":
-            pass
+            self.open_resident()

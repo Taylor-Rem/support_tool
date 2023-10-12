@@ -1,11 +1,53 @@
-from front_end.helper_windows import HelperWidget
-
-
-class OperationsHelper(HelperWidget):
-    def __init__(self, main_app, title):
-        super().__init__(main_app, title)
+class OperationsList:
+    def __init__(self):
         self.month_selector = {"Current Month": "current", "Previous Month": "previous"}
-        self.operations_dict = {
+        self.ticket_ops_dict = {
+            "open_ticket": {
+                "Ledger": {
+                    "operation": "open_ticket",
+                    "selection": "ledger",
+                    "tools": "ticket",
+                },
+                "Unit": {
+                    "operation": "open_ticket",
+                    "selection": "unit",
+                    "tools": "ticket",
+                },
+                "Resident": {
+                    "operation": "open_ticket",
+                    "selection": "resident",
+                    "tools": "ticket",
+                },
+            },
+            "resolve_ticket": {
+                "Resolve": {
+                    "operation": "resolve_ticket",
+                    "selection": "resolve",
+                    "tools": "ticket",
+                },
+                "In Progress": {
+                    "operation": "resolve_ticket",
+                    "selection": "in_progress",
+                    "tools": "ticket",
+                },
+                "Unresolve": {
+                    "operation": "resolve_ticket",
+                    "selection": "unresolve",
+                    "tools": "ticket",
+                },
+            },
+            "ticket_bot": {
+                "Unresolve All": {
+                    "operation": "unresolve_all",
+                    "tools": "ticket",
+                },
+                "Automation": {
+                    "operation": "automation",
+                    "tools": "ticket",
+                },
+            },
+        }
+        self.ledger_ops_dict = {
             "allocate": {
                 "Allocate All": {
                     "operation": "allocate",
@@ -71,47 +113,15 @@ class OperationsHelper(HelperWidget):
             "credit": {
                 "Credit": {
                     "operation": "credit",
+                    "selection": "credit",
                     "widgets": ["text_input"],
                     "tools": ["ledger", "credit"],
                 },
                 "Concession": {
-                    "operation": "concession",
+                    "operation": "credit",
+                    "selection": "concession",
                     "widgets": ["text_input"],
                     "tools": ["ledger", "credit"],
-                },
-            },
-            "open_ticket": {
-                "Ledger": {
-                    "operation": "open_ticket",
-                    "selection": "ledger",
-                    "tools": "ticket",
-                },
-                "Unit": {
-                    "operation": "open_ticket",
-                    "selection": "unit",
-                    "tools": "ticket",
-                },
-                "Resident": {
-                    "operation": "open_ticket",
-                    "selection": "resident",
-                    "tools": "ticket",
-                },
-            },
-            "resolve_ticket": {
-                "Resolve": {
-                    "operation": "resolve_ticket",
-                    "selection": "resolve",
-                    "tools": "ticket",
-                },
-                "In Progress": {
-                    "operation": "resolve_ticket",
-                    "selection": "in_progress",
-                    "tools": "ticket",
-                },
-                "Unresolve": {
-                    "operation": "resolve_ticket",
-                    "selection": "unresolve",
-                    "tools": "ticket",
                 },
             },
         }

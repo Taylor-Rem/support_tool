@@ -67,13 +67,19 @@ class BaseWidget(QWidget):
         }
 
     def get_operation_from_key(self, key):
-        for operation, sub_dict in self.operations_dict.items():
+        for operation, sub_dict in self.operations_list.ticket_ops_dict.items():
+            if key in sub_dict:
+                return operation
+        for operation, sub_dict in self.operations_list.ledger_ops_dict.items():
             if key in sub_dict:
                 return operation
         return None
 
     def get_operation_value_from_dropdown(self, key):
-        for sub_dict in self.operations_dict.values():
+        for sub_dict in self.operations_list.ticket_ops_dict.values():
+            if key in sub_dict:
+                return sub_dict.get(key)
+        for sub_dict in self.operations_list.ledger_ops_dict.values():
             if key in sub_dict:
                 return sub_dict.get(key)
         return None

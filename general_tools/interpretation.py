@@ -74,7 +74,16 @@ class NumberInterpreter(BaseInterpreter):
 
     def extract_unit_number(self, text):
         numbers = self.find_nouns_in_text(text)
+
+        # Look for numbers followed by a letter (e.g., 312C)
+        match = re.search(r"(\d+)([A-Za-z])", text)
+        if match:
+            unit_number = match.group(1) + match.group(2)
+            return unit_number
+
+        # If no direct number-letter combination found, use proximity check
         unit_number = self._keyword_proximity(text, ["unit", "space", "lot"], numbers)
+
         return None if unit_number and len(unit_number) > 4 else unit_number
 
     def extract_dollar_amount(self, text):

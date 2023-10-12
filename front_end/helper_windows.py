@@ -1,17 +1,23 @@
 from PyQt5.QtWidgets import QVBoxLayout, QLabel
 from front_end.base_widget import BaseWidget
-from general_tools.operations import Operations
+from main_tools.operations import Operations
+from main_tools.operations_list import OperationsList
 from functools import partial
 from front_end.thread import ThreadHelper
+from main_tools.robots import TicketBot, RedstarBot
 
 
 class HelperWidget(BaseWidget):
     def __init__(self, main_app, title):
         super().__init__()
+        self.operations_list = OperationsList()
         self.operations = Operations(main_app.browser)
+        self.ticket_bot = TicketBot(main_app.browser, self.operations_list)
+        self.redstar_bot = RedstarBot(main_app.browser, self.operations_list)
         self.main_app = main_app
         self.setWindowTitle(title)
         self.previous_window = None
+        self.thread_helper = None
 
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
@@ -28,17 +34,26 @@ class HelperWidget(BaseWidget):
         return super()._create_button(text, callback, target_layout)
 
     def run_in_thread(self, callback, *args, **kwargs):
-        self.command = args[0]
+        self.command = kwargs.pop("command", None)
+        self.previous_window = self.main_app.current_window()
         self.thread_helper = ThreadHelper(callback, *args, **kwargs)
-        self.operations.thread_helper = self.thread_helper
+        self.give_thread()
         self.thread_helper.thread_signal.connect(self.on_thread_finished)
         self.cancel_dialog = ThreadRunningWindow(self.main_app, self.thread_helper)
         self.main_app.switch_window(self.cancel_dialog, add_to_previous=False)
         self.thread_helper.start()
 
+    def give_thread(self):
+        self.operations.thread_helper = self.thread_helper
+        self.ticket_bot.thread_helper = self.thread_helper
+        self.redstar_bot.thread_helper = self.thread_helper
+
     def on_thread_finished(self, result):
         self.cancel_dialog.close()
-        self.main_app.stack.setCurrentWidget(self.command["window"])
+        if self.command:
+            self.main_app.stack.setCurrentWidget(self.command["window"])
+        else:
+            self.main_app.stack.setCurrentWidget(self.previous_window)
 
     def go_back(self):
         if self.main_app.previous_widgets:
@@ -75,8 +90,10 @@ class AdditionalInfoWindow(HelperWidget):
 
     def create_additional_info_widgets(self, command):
         for widget in command["widgets"]:
+            if widget == "dropdown":
+                dropdown = self.create_dropdown(["hi", "hello", "how do you do"])
             if widget == "text_input":
-                comment = self.create_text_input("Enter Comment")
+                comment = self.create_text_input("")
         self.create_button("Submit", partial(self.submit, command, comment))
 
     def submit(self, command, input):

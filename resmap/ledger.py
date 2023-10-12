@@ -131,6 +131,14 @@ class LedgerOps(LedgerLoop):
         table_rows = self.loop_through_table(rows)
         return table_rows
 
+    def refresh_ledger_info(self):
+        try:
+            self.ledger_info = self.retrieve_elements()
+            self.rows_length = len(self.ledger_info)
+            return True
+        except:
+            return False
+
     def click_ledger_table(self):
         special_type = self.ledger_row.get("special_type", [])
         exclude = self.command.get("exclude", [])
