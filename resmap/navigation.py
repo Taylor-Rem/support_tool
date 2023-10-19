@@ -10,6 +10,9 @@ class ResmapNavScrape:
         self.general_info = GeneralInfo()
         if info:
             self.info = info
+        else:
+            self.info = {}
+            self.info["resident"] = None
         self.property_link = "https://kingsley.residentmap.com/forward.php?propid="
         self.rest_of_link = "&script=residentadmin.php&cmd=statusbar&rsid="
 
@@ -17,9 +20,12 @@ class ResmapNavScrape:
         return self.browser.find_element(By.XPATH, "(//a[text()='Ledger'])[last()]")
 
     def retrieve_resident_element(self):
-        return self.browser.find_element(
+        if self.info["resident"] == None:
+            return True
+        resident_element = self.browser.find_element(
             By.XPATH, f".//a[contains(text(), '{self.info['resident']}')]"
         )
+        return resident_element
 
     def retrieve_unit_element(self):
         return self.browser.find_element(
@@ -55,8 +61,11 @@ class ResmapNav(ResmapNavScrape):
         if self.retrieve_resident_element():
             self.browser.click_element(self.retrieve_ledger_element())
         else:
-            self.browser.click_element(self.retrieve_former_element())
-            self.browser.click_element(self.retrieve_ledger_element())
+            self.open_former_ledger()
+
+    def open_former_ledger(self):
+        self.browser.click_element(self.retrieve_former_element())
+        self.browser.click_element(self.retrieve_ledger_element())
 
     def open_resident(self):
         try:

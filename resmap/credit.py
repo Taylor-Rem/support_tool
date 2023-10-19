@@ -18,7 +18,8 @@ class CreditOps(CreditScrape):
 
     def add_credit(self):
         self.define_select()
-        self.fill_select()
+        if not self.fill_select():
+            return
         self.send_credit_keys()
 
     def fill_select(self):
@@ -35,6 +36,9 @@ class CreditOps(CreditScrape):
             if option.text.lower() == selection:
                 self.select.select_by_index(index)
                 break
+        else:
+            return False
+        return True
 
     def send_credit_keys(self):
         credit_input = self.browser.find_element(

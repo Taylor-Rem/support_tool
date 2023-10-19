@@ -36,21 +36,27 @@ class TicketScrape:
             .strip()
         )
 
-        unit = self.browser.find_element(
+        unit_element = self.browser.find_element(
             By.XPATH,
-            "//tr/td[@class='text-xs-right' and contains(text(), 'Space')]/following-sibling::td[@class='text-xs-left']/a/strong",
+            "//tr/td[@class='text-xs-right' and contains(text(), 'Space')]/following-sibling::td[@class='text-xs-left']/a",
         )
-        if unit is not None:
-            unit = unit.get_attribute("innerHTML").strip()
+
+        if unit_element is not None:
+            unit_text = unit_element.find_element(By.XPATH, "./strong")
+            unit_number = unit_text.get_attribute("innerHTML").strip()
+            href_value = unit_element.get_attribute("href")
+            space_id = href_value.split("/spaces/")[-1].split("/")[0]
+            print(space_id)
         else:
-            unit = self.interpretation.extract_unit_number(title + description)
+            unit_number = self.interpretation.extract_unit_number(title + description)
+            space_id = None
 
         resident = self.browser.find_element(
             By.XPATH,
             "//tr/td[@class='text-xs-right' and contains(text(), 'Resident')]/following-sibling::td[@class='text-xs-left']/a/strong",
         )
         if resident is not None:
-            resident = resident.get_attribute("innerHTML").strip()
+            resident = resident.get_attribute("textContent").strip()
         else:
             resident = self.interpretation.extract_resident_name(title + description)
 
@@ -58,7 +64,8 @@ class TicketScrape:
             "title": title,
             "description": description,
             "property": property,
-            "unit": unit,
+            "unit": unit_number,
+            "space_id": space_id,
             "resident": resident,
         }
 

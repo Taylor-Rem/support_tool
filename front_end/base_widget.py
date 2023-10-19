@@ -10,19 +10,30 @@ from functools import partial
 
 
 class BaseWidget(QWidget):
-    def _create_button(self, text, callback, layout):
+    def _create_button(self, text, callback, layout=None):
+        if layout is None:
+            layout = self.layout
         button = QPushButton(text, self)
         button.clicked.connect(callback)
         layout.addWidget(button)
         return button
 
-    def create_text_input(self, default_text="", label=None):
+    def create_text_input(self, default_text="", label=None, callback=None):
         if label:
             label = QLabel(label)
             self.layout.addWidget(label)
         text_input = QLineEdit(self)
         text_input.setText(default_text)
         self.layout.addWidget(text_input)
+        if callback:
+
+            def on_return_pressed():
+                callback(
+                    text_input.text()
+                )  # Get the current value of the text_input and pass it to the callback
+
+            text_input.returnPressed.connect(on_return_pressed)
+            self._create_button("Submit", on_return_pressed)
         return text_input
 
     def create_dropdown(self, items, current_index=0):

@@ -2,7 +2,12 @@ from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QWidget, QStackedWidget
 from functools import partial
 from general_tools.browser import Browser
 from front_end.base_widget import BaseWidget
-from front_end.other_windows import RedstarHelper, TicketHelper, LedgerWindow
+from front_end.other_windows import (
+    RedstarHelper,
+    TicketHelper,
+    LedgerWindow,
+    RandomWindow,
+)
 
 
 class App(BaseWidget):
@@ -25,6 +30,7 @@ class App(BaseWidget):
         self.ledger_window = LedgerWindow(self)
         self.redstar_helper = RedstarHelper(self)
         self.ticket_helper = TicketHelper(self)
+        self.random_window = RandomWindow(self)
         self.init_main_window()
 
     def add_widgets(self):
@@ -33,6 +39,7 @@ class App(BaseWidget):
             self.ledger_window,
             self.redstar_helper,
             self.ticket_helper,
+            self.random_window,
         ]
         for window in windows:
             self.stack.addWidget(window)
@@ -58,6 +65,14 @@ class App(BaseWidget):
                     self.ticket_helper,
                     self.browser.supportdesk_url,
                 ),
+            },
+            {
+                "name": "Ledger Tools",
+                "method": partial(self.switch_window, self.ledger_window),
+            },
+            {
+                "name": "Random",
+                "method": partial(self.switch_window, self.random_window),
             },
         ]
         [

@@ -20,17 +20,17 @@ class OperationsList:
                 },
             },
             "resolve_ticket": {
-                "Resolve": {
+                "Resolve ✅": {
                     "operation": "resolve_ticket",
                     "selection": "resolve",
                     "tools": "ticket",
                 },
-                "In Progress": {
+                "In Progress 🔵": {
                     "operation": "resolve_ticket",
                     "selection": "in_progress",
                     "tools": "ticket",
                 },
-                "Unresolve": {
+                "Unresolve ⛔️": {
                     "operation": "resolve_ticket",
                     "selection": "unresolve",
                     "tools": "ticket",
@@ -48,6 +48,18 @@ class OperationsList:
             },
         }
         self.ledger_ops_dict = {
+            "change_resident": {
+                "Current": {
+                    "operation": "change_resident",
+                    "selection": "current",
+                    "tools": ["ledger", "nav"],
+                },
+                "Former": {
+                    "operation": "change_resident",
+                    "selection": "former",
+                    "tools": ["ledger", "nav"],
+                },
+            },
             "allocate": {
                 "Allocate All": {
                     "operation": "allocate",
@@ -103,10 +115,23 @@ class OperationsList:
                     "type": ["late_fee"],
                     "tools": ["ledger", "table"],
                 },
+                "Delete NSF": {
+                    "operation": "delete",
+                    "type": ["sytem_nsf", "nsf"],
+                    "tools": ["ledger", "table"],
+                    "exclude": ["payment"],
+                },
                 "Delete All Except": {
                     "operation": "delete",
                     "type": ["credit", "charge"],
-                    "widgets": ["dropdown", "text_input"],
+                    "widgets": [
+                        (
+                            "dropdown",
+                            ["None", "Metered", "Rent"],
+                            "exclude",
+                        ),
+                        ("text_input", ("", "Exclude:"), "exclude"),
+                    ],
                     "tools": ["ledger", "table"],
                 },
             },
@@ -114,13 +139,13 @@ class OperationsList:
                 "Credit": {
                     "operation": "credit",
                     "selection": "credit",
-                    "widgets": ["text_input"],
+                    "widgets": [("text_input", ("", "Enter Comment"), "comment")],
                     "tools": ["ledger", "credit"],
                 },
                 "Concession": {
                     "operation": "credit",
                     "selection": "concession",
-                    "widgets": ["text_input"],
+                    "widgets": [("text_input", ("", "Enter Comment"), "comment")],
                     "tools": ["ledger", "credit"],
                 },
             },

@@ -13,9 +13,14 @@ class LedgerTools(HelperWidget):
         super().__init__(main_app, title)
         self.additional_info_window = AdditionalInfoWindow(main_app)
         self.general_info = GeneralInfo()
-        self.previous_closed = self.general_info.day >= 15
+        self.previous_closed = self.general_info.day >= 17
 
     def create_ledger_tools(self):
+        self.change_resident_dropdown = self.configured_operations_dropdown(
+            ["Change Resident"]
+            + list(self.operations_list.ledger_ops_dict["change_resident"].keys()),
+            self.submit,
+        )
         if not self.previous_closed:
             self.choose_month_dropdown = self.create_dropdown(
                 list(self.operations_list.month_selector.keys())
@@ -39,10 +44,13 @@ class LedgerTools(HelperWidget):
             + list(self.operations_list.ledger_ops_dict["credit"].keys()),
             self.submit,
         )
+        self.fix_nsf_btn = self.create_button(
+            "Fix NSF", lambda: self.run_in_thread(self.nsf_bot.fix_nsf)
+        )
 
     def create_AIW_with_widgets(self, command):
         self.additional_info_window = AdditionalInfoWindow(self.main_app, command)
-        self.main_app.switch_window(self.additional_info_window)
+        self.main_app.switch_window(self.additional_info_window, add_to_previous=False)
 
     def submit(self, command):
         command["window"] = self.main_app.current_window()
@@ -125,3 +133,23 @@ class RedstarHelper(LedgerTools):
 
     def run_bot(self):
         self.run_in_thread(self.redstar_bot.loop_through_redstars)
+
+
+class RandomWindow(HelperWidget):
+    def __init__(self, main_app):
+        super().__init__(main_app, "Random Task")
+        # Create a QHBoxLayout for the buttons
+        buttons_layout = QHBoxLayout()
+        # Add "Prev" button to the horizontal layout
+        self.prev_btn = self.create_button(
+            "< Prev", partial(self.random_ops.random_operation, False)
+        )
+        buttons_layout.addWidget(self.prev_btn)
+
+        # Add "Next" button to the horizontal layout
+        self.next_btn = self.create_button(
+            "Next >", partial(self.random_ops.random_operation, True)
+        )
+        buttons_layout.addWidget(self.next_btn)
+        self.layout.addLayout(buttons_layout)
+        self.add_back_btn()

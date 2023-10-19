@@ -4,7 +4,8 @@ from main_tools.operations import Operations
 from main_tools.operations_list import OperationsList
 from functools import partial
 from front_end.thread import ThreadHelper
-from main_tools.robots import TicketBot, RedstarBot
+from main_tools.robots import TicketBot, RedstarBot, NSFBot
+from main_tools.random_ops import RandomOps
 
 
 class HelperWidget(BaseWidget):
@@ -13,7 +14,11 @@ class HelperWidget(BaseWidget):
         self.operations_list = OperationsList()
         self.operations = Operations(main_app.browser)
         self.ticket_bot = TicketBot(main_app.browser, self.operations_list)
-        self.redstar_bot = RedstarBot(main_app.browser, self.operations_list)
+        self.nsf_bot = NSFBot(main_app.browser, self.operations_list)
+        self.redstar_bot = RedstarBot(
+            main_app.browser, self.operations_list, nsf_bot=self.nsf_bot
+        )
+        self.random_ops = RandomOps(main_app.browser, self.operations_list)
         self.main_app = main_app
         self.setWindowTitle(title)
         self.previous_window = None
@@ -35,6 +40,11 @@ class HelperWidget(BaseWidget):
 
     def run_in_thread(self, callback, *args, **kwargs):
         self.command = kwargs.pop("command", None)
+        if not self.command:
+            try:
+                self.command = args[0]
+            except:
+                self.command = None
         self.previous_window = self.main_app.current_window()
         self.thread_helper = ThreadHelper(callback, *args, **kwargs)
         self.give_thread()
@@ -46,14 +56,16 @@ class HelperWidget(BaseWidget):
     def give_thread(self):
         self.operations.thread_helper = self.thread_helper
         self.ticket_bot.thread_helper = self.thread_helper
+        self.nsf_bot.thread_helper = self.thread_helper
         self.redstar_bot.thread_helper = self.thread_helper
+        self.random_ops.thread_helper = self.thread_helper
 
     def on_thread_finished(self, result):
         self.cancel_dialog.close()
         if self.command:
-            self.main_app.stack.setCurrentWidget(self.command["window"])
+            self.main_app.switch_window(self.command["window"], add_to_previous=False)
         else:
-            self.main_app.stack.setCurrentWidget(self.previous_window)
+            self.main_app.switch_window(self.previous_window, add_to_previous=False)
 
     def go_back(self):
         if self.main_app.previous_widgets:
@@ -89,13 +101,29 @@ class AdditionalInfoWindow(HelperWidget):
             self.add_back_btn()
 
     def create_additional_info_widgets(self, command):
-        for widget in command["widgets"]:
-            if widget == "dropdown":
-                dropdown = self.create_dropdown(["hi", "hello", "how do you do"])
-            if widget == "text_input":
-                comment = self.create_text_input("")
-        self.create_button("Submit", partial(self.submit, command, comment))
+        for widget_type, widget_info, command_name in command["widgets"]:
+            if widget_type == "dropdown":
+                self.create_configured_dropdown(
+                    widget_info, partial(self.submit, command, command_name)
+                )
+            if widget_type == "text_input":
+                self.create_text_input(
+                    *widget_info,
+                    callback=partial(self.submit, command, command_name),
+                )
 
-    def submit(self, command, input):
-        command["comment"] = input.text()
+    def submit(self, command, command_name, additional_command=None):
+        if additional_command:
+            if command_name == "exclude":
+                try:
+                    command[command_name] = additional_command.currentText()
+                except:
+                    command[command_name] = additional_command
+                command[command_name] = (
+                    command[command_name].lower().replace(" ", "").split(",")
+                )
+
+            elif command_name == "comment":
+                command[command_name] = additional_command
+
         self.run_in_thread(self.operations.init_operation, command)

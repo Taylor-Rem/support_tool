@@ -37,6 +37,11 @@ class LedgerScrape:
         prepaid_amount = self.browser.get_number_from_inner_html(value)
         return prepaid_amount if "(" not in value else -prepaid_amount
 
+    def scrape_unit(self):
+        return self.browser.find_element(
+            By.XPATH, f"{self.base_xpath}[3]/tbody/tr[2]/td/table/tbody/tr[3]/td[2]/a"
+        )
+
 
 class LoopFunctions(LedgerScrape):
     def __init__(self, browser):
@@ -88,12 +93,13 @@ class LoopFunctions(LedgerScrape):
         elif is_credit:
             type_update["type"] = "credit"
 
-        special_types = ["late_fee", "metered", "bounced_check", "system_nsf"]
+        special_types = ["late_fee", "metered", "bounced_check", "system_nsf", "nsf"]
         checks = [
             "late" in label,
             self.check_is_metered(row),
             is_payment and "(nsf" in label,
             is_charge and "(nsf" in label,
+            "nsf" in label,
         ]
 
         for s_type, check in zip(special_types, checks):
@@ -142,12 +148,14 @@ class LedgerOps(LedgerLoop):
     def click_ledger_table(self):
         special_type = self.ledger_row.get("special_type", [])
         exclude = self.command.get("exclude", [])
+        if (
+            self.ledger_row["label"].replace(" ", "") in exclude
+            or self.ledger_row["type"] in exclude
+            or special_type in exclude
+        ):
+            return False
         for command_type in self.command["type"]:
-            if (
-                command_type == self.ledger_row["type"] or command_type in special_type
-            ) and (
-                self.ledger_row["type"] not in exclude or special_type not in exclude
-            ):
+            if command_type == self.ledger_row["type"] or command_type in special_type:
                 self.browser.click_element(self.ledger_row["link"])
                 return True
 
@@ -160,9 +168,7 @@ class LedgerOps(LedgerLoop):
             self.browser.driver.get(self.current_url)
 
     def check_nsf(self):
-        if self.ledger_row.get("special_type"):
-            if (
-                "bounced_check" in self.ledger_row["special_type"]
-                or "system_nsf" in self.ledger_row["special_type"]
-            ):
-                return True
+        return any(
+            transaction.get("special_type") in ["system_nsf", "bounced_check"]
+            for transaction in self.ledger_info
+        )

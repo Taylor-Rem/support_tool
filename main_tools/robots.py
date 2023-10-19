@@ -39,11 +39,15 @@ class TicketBot(Operations):
             self.tickets_info = self.supportdesk_master.support_desk_loop()
             self.idx += 1
 
+    def unresolve_all(self):
+        pass
+
 
 class RedstarBot(Operations):
-    def __init__(self, browser, operations_list, thread_helper=None):
+    def __init__(self, browser, operations_list, thread_helper=None, nsf_bot=None):
         super().__init__(browser, thread_helper)
         self.operations_list = operations_list
+        self.nsf_bot = nsf_bot
         self.general_info = GeneralInfo()
 
     def loop_through_redstars(self):
@@ -61,25 +65,11 @@ class RedstarBot(Operations):
         if self.general_info.day <= 15:
             tables.append("previous")
         for table in tables:
-            command = self.operations_list.ledger_ops_dict["allocate"][
-                "Allocate Payments"
-            ]
-            command["table"] = table
-            self.init_operation(command)
-
+            self.run_command("Allocate Payments", table)
             if not self.has_redstar():
                 return
-
-            command = self.operations_list.ledger_ops_dict["unallocate"][
-                "Unallocate All"
-            ]
-            command["table"] = table
-            self.init_operation(command)
-
-            command = self.operations_list.ledger_ops_dict["allocate"]["Allocate All"]
-            command["table"] = table
-            self.init_operation(command)
-
+            self.run_command("Unallocate All", table)
+            self.run_command("Allocate All", table)
             if not self.has_redstar():
                 return
 
@@ -87,3 +77,19 @@ class RedstarBot(Operations):
         return self.browser.element_exists(
             By.XPATH, '//td//font[@color="red" and text()="*"]'
         )
+
+
+class NSFBot(Operations):
+    def __init__(self, browser, operations_list, thread_helper=None):
+        super().__init__(browser, thread_helper)
+        self.operations_list = operations_list
+
+    def fix_nsf(self):
+        self.run_command("Delete NSF", "current")
+        self.run_command("Delete Late Fees", "current")
+        self.run_command("Unallocate All", "current")
+
+    def create_bounce_check_command(self):
+        command = {"operations": "bounce"}
+
+

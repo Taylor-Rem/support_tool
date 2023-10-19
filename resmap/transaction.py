@@ -11,9 +11,6 @@ class TransactionScrape:
             "payment": "/html/body/table[2]/tbody/tr[4]/td/table/tbody/tr/td/form/table[2]/tbody/tr[2]/td/table/tbody",
         }
 
-    def retrieve_rows(self, type):
-        return self.browser.get_rows(By.XPATH, self.table_identifier[type])
-
     def retrieve_charge_info(self, cells):
         title = cells[0].text.strip()
         amount_input = cells[1].find_element(By.NAME, "amount")
@@ -82,14 +79,18 @@ class TransactionLoop(TransactionScrape):
 
 
 class TransactionOps(TransactionLoop):
-    def __init__(self, browser, command):
+    def __init__(self, browser, command, thread_helper):
         super().__init__(browser)
         self.command = command
+        self.thread_helper = thread_helper
 
     def retrieve_elements(self):
-        rows = self.browser.get_rows(
+        table = self.browser.find_element(
             By.XPATH, self.table_identifier[self.ledger_row["type"]]
         )
+        if table is None:
+            return None
+        rows = table.find_elements(By.XPATH, ".//tr")
         return {
             "rows": self.loop_through_table(rows),
             "rows_length": len(rows) - 2,
@@ -130,9 +131,13 @@ class TransactionOps(TransactionLoop):
                 return "reload"
 
     def delete(self):
-        self.browser.click(By.NAME, "delete")
-        alert = self.browser.driver.switch_to.alert
-        alert.accept()
+        if self.thread_helper and not self.thread_helper._is_cancelled:
+            try:
+                self.browser.click(By.NAME, "delete")
+                alert = self.browser.driver.switch_to.alert
+                alert.accept()
+            except:
+                return
 
     def clear_element(self, input_element, enter):
         self.browser.send_keys_to_element(input_element, Keys.CONTROL + "a", False)

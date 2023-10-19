@@ -19,6 +19,16 @@ class OperationsBase:
         self.init_classes()
         self.perform_operation()
 
+    def run_command(self, selection, table):
+        operations = ["allocate", "unallocate", "delete", "credit"]
+        operation = None
+        for specific_operation in operations:
+            if specific_operation in selection.lower():
+                operation = specific_operation
+        command = self.operations_list.ledger_ops_dict[operation][selection]
+        command["table"] = table
+        self.init_operation(command)
+
     def init_classes(self):
         if "ticket" in self.command["tools"]:
             self.resmap_nav_master = ResmapNavMaster(self.browser, self.command, None)
@@ -29,6 +39,8 @@ class OperationsBase:
                 self.browser, self.command, self.ticket_master
             )
         if "ledger" in self.command["tools"]:
+            if "nav" in self.command["tools"]:
+                click_location = ResmapNavMaster(self.browser, self.command, None)
             if "table" in self.command["tools"]:
                 click_location = TransactionMaster(
                     self.browser, self.command, self.thread_helper
@@ -46,19 +58,7 @@ class Operations(OperationsBase):
         if "ticket" in self.command["tools"]:
             self.ticket_master.perform_operation()
         elif "ledger" in self.command["tools"]:
-            if (
-                self.command["operation"] in ["allocate", "unallocate"]
-                and "all" in self.command["type"]
-            ):
-                self.specific_operations()
-            else:
-                self.ledger_master.ledger_loop()
-
-    def specific_operations(self):
-        types = [["payment"], ["charge"]]
-        for transaction_type in types:
-            self.command["type"] = transaction_type
-            self.ledger_master.ledger_loop()
+            self.ledger_master.define_operation()
 
     def open_redstars(self, next_ledger):
         self.redstar_master.cycle_ledger(next_ledger)
@@ -71,15 +71,32 @@ class LedgerMaster(LedgerOps):
         self.thread_helper = thread_helper
         self.current_url = self.browser.driver.current_url
 
+    def define_operation(self):
+        if "all" in self.command.get("type", []):
+            self.multiple_loops()
+        if any(tool in self.command["tools"] for tool in ["table", "credit"]):
+            self.ledger_loop()
+        if "nav" in self.command["tools"]:
+            unit_element = self.scrape_unit()
+            self.click_location.change_resident(unit_element)
+
+    def multiple_loops(self):
+        types = [["payment"], ["charge"]]
+        for transaction_type in types:
+            self.command["type"] = transaction_type
+            self.ledger_loop()
+
     def ledger_loop(self):
         self.idx = 0
         self.refresh_ledger_info()
+        self.last_row = None
         while True:
             if self.break_early():
                 break
             self.ledger_row = self.ledger_info[self.idx]
             if self.continue_loop():
                 continue
+            self.last_row = self.ledger_row["label"]
             if self.perform_operation():
                 self.return_to_ledger()
                 if not self.refresh_ledger_info():
@@ -102,10 +119,10 @@ class LedgerMaster(LedgerOps):
             return True
 
     def continue_loop(self):
-        if self.check_nsf() or (
+        if (
             self.ledger_row.get("link") is None
             and self.command["operation"] != "credit"
-        ):
+        ) or (self.last_row == self.ledger_row["label"]):
             self.idx += 1
             return True
 
@@ -125,13 +142,13 @@ class LedgerMaster(LedgerOps):
 
 class TransactionMaster(TransactionOps):
     def __init__(self, browser, command, thread_helper):
-        super().__init__(browser, command)
-        self.thread_helper = thread_helper
+        super().__init__(browser, command, thread_helper)
 
     def operation(self, row):
         self.ledger_row = row
         self.idx = 0
-        self.refresh_transaction_info()
+        if not self.refresh_transaction_info():
+            return
         while True:
             if self.idx >= self.transaction_info["rows_length"] or (
                 self.thread_helper and self.thread_helper._is_cancelled
@@ -145,12 +162,17 @@ class TransactionMaster(TransactionOps):
             if operation_result == "continue":
                 continue
             if operation_result == "reload":
-                self.refresh_transaction_info()
+                self.transaction_info = self.retrieve_elements()
                 continue
             self.idx += 1
 
     def refresh_transaction_info(self):
         self.transaction_info = self.retrieve_elements()
+        if self.transaction_info is None:
+            if self.command["operation"] == "allocate":
+                self.auto_allocate()
+            return False
+        return True
 
 
 class CreditMaster(CreditOps):
@@ -211,3 +233,10 @@ class ResmapNavMaster(ResmapNav):
             self.open_ledger()
         if self.command["selection"] == "resident":
             self.open_resident()
+
+    def change_resident(self, unit_element):
+        self.browser.click_element(unit_element)
+        if self.command["selection"] == "current":
+            self.open_ledger()
+        elif self.command["selection"] == "former":
+            self.open_former_ledger()
