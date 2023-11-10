@@ -191,6 +191,13 @@ class WebdriverResmapOperations(BrowserBase):
         except:
             return False
 
+    def accept_alert(self):
+        try:
+            alert = self.driver.switch_to.alert
+            alert.accept()
+        except:
+            return
+
 
 class Browser(WebElementOperations, WebUtilityOperations, WebdriverResmapOperations):
     def __init__(self):

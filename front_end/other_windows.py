@@ -4,6 +4,7 @@ from functools import partial
 from PyQt5.QtWidgets import QHBoxLayout
 from front_end.helper_windows import AdditionalInfoWindow
 from general_tools.general_info import GeneralInfo
+from main_tools.operations import RedStarMaster
 
 
 class LedgerTools(HelperWidget):
@@ -13,7 +14,7 @@ class LedgerTools(HelperWidget):
         super().__init__(main_app, title)
         self.additional_info_window = AdditionalInfoWindow(main_app)
         self.general_info = GeneralInfo()
-        self.previous_closed = self.general_info.day >= 17
+        self.previous_closed = self.general_info.day >= 30
 
     def create_ledger_tools(self):
         self.change_resident_dropdown = self.configured_operations_dropdown(
@@ -44,9 +45,9 @@ class LedgerTools(HelperWidget):
             + list(self.operations_list.ledger_ops_dict["credit"].keys()),
             self.submit,
         )
-        self.fix_nsf_btn = self.create_button(
-            "Fix NSF", lambda: self.run_in_thread(self.nsf_bot.fix_nsf)
-        )
+        # self.fix_nsf_btn = self.create_button(
+        #     "Fix NSF", lambda: self.run_in_thread(self.nsf_bot.fix_nsf)
+        # )
 
     def create_AIW_with_widgets(self, command):
         self.additional_info_window = AdditionalInfoWindow(self.main_app, command)
@@ -113,15 +114,11 @@ class RedstarHelper(LedgerTools):
         buttons_layout = QHBoxLayout()
 
         # Add "Prev" button to the horizontal layout
-        self.prev_btn = self.create_button(
-            "< Prev", partial(self.operations.open_redstars, False)
-        )
+        self.prev_btn = self.create_button("< Prev", partial(self.open_report, False))
         buttons_layout.addWidget(self.prev_btn)
 
         # Add "Next" button to the horizontal layout
-        self.next_btn = self.create_button(
-            "Next >", partial(self.operations.open_redstars, True)
-        )
+        self.next_btn = self.create_button("Next >", partial(self.open_report, True))
         buttons_layout.addWidget(self.next_btn)
 
         # Add the QHBoxLayout to the main layout
@@ -131,6 +128,11 @@ class RedstarHelper(LedgerTools):
         self.run_bot = self.create_button("Run Bot", self.run_bot)
         self.add_back_btn()
 
+    def open_report(self, next):
+        if not self.operations.redstar_master:
+            self.operations.redstar_master = RedStarMaster(self.main_app.browser)
+        self.operations.redstar_master.cycle_ledger(next)
+
     def run_bot(self):
         self.run_in_thread(self.redstar_bot.loop_through_redstars)
 
@@ -138,18 +140,8 @@ class RedstarHelper(LedgerTools):
 class RandomWindow(HelperWidget):
     def __init__(self, main_app):
         super().__init__(main_app, "Random Task")
-        # Create a QHBoxLayout for the buttons
-        buttons_layout = QHBoxLayout()
-        # Add "Prev" button to the horizontal layout
-        self.prev_btn = self.create_button(
-            "< Prev", partial(self.random_ops.random_operation, False)
-        )
-        buttons_layout.addWidget(self.prev_btn)
-
-        # Add "Next" button to the horizontal layout
-        self.next_btn = self.create_button(
-            "Next >", partial(self.random_ops.random_operation, True)
-        )
-        buttons_layout.addWidget(self.next_btn)
-        self.layout.addLayout(buttons_layout)
+        self.random_btn = self.create_button("Random Task", self.run_bot)
         self.add_back_btn()
+
+    def run_bot(self):
+        self.run_in_thread(self.random_ops.random_operation)

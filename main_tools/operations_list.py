@@ -20,17 +20,17 @@ class OperationsList:
                 },
             },
             "resolve_ticket": {
-                "Resolve ✅": {
+                "Resolve": {
                     "operation": "resolve_ticket",
                     "selection": "resolve",
                     "tools": "ticket",
                 },
-                "In Progress 🔵": {
+                "In Progress": {
                     "operation": "resolve_ticket",
                     "selection": "in_progress",
                     "tools": "ticket",
                 },
-                "Unresolve ⛔️": {
+                "Unresolve": {
                     "operation": "resolve_ticket",
                     "selection": "unresolve",
                     "tools": "ticket",
@@ -127,7 +127,7 @@ class OperationsList:
                     "widgets": [
                         (
                             "dropdown",
-                            ["None", "Metered", "Rent"],
+                            ["None", "Metered", "Rent", "security_deposit"],
                             "exclude",
                         ),
                         ("text_input", ("", "Exclude:"), "exclude"),

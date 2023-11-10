@@ -73,11 +73,21 @@ class NumberInterpreter(BaseInterpreter):
         return nouns
 
     def extract_unit_number(self, text):
+        hash_number_match = re.search(r"#(\d+)", text)
+        if hash_number_match:
+            return hash_number_match.group(1)
         numbers = self.find_nouns_in_text(text)
 
         # Look for numbers followed by a letter (e.g., 312C)
-        match = re.search(r"(\d+)([A-Za-z])", text)
-        if match:
+        match = re.search(r"(\d+)([A-Za-z])(?!\w)", text)
+        if match and match.group(2).lower() not in [
+            "s",
+            "t",
+            "n",
+            "d",
+            "r",
+            "h",
+        ]:  # Check if the matched letter is not an ordinal indicator.
             unit_number = match.group(1) + match.group(2)
             return unit_number
 

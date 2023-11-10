@@ -46,9 +46,23 @@ class ReportsBase(OSBase):
 
     def retrieve_file(self):
         try:
-            file_name = os.listdir(self.reports_path)[-1]
-            return f"{self.reports_path}/{file_name}"
-        except:
+            # Get all the files with .csv extension from the directory
+            csv_files = [f for f in os.listdir(self.reports_path) if f.endswith(".csv")]
+
+            # Ensure there's at least one CSV file in the directory
+            if not csv_files:
+                print("No CSV files found in the directory.")
+                return None
+
+            # Sort the files by their creation time, and get the latest one
+            latest_csv = max(
+                csv_files,
+                key=lambda x: os.path.getctime(os.path.join(self.reports_path, x)),
+            )
+
+            return os.path.join(self.reports_path, latest_csv)
+        except Exception as e:
+            print(f"Error retrieving the latest CSV: {e}")
             return None
 
     def retrieve_report_info(self):
@@ -63,14 +77,15 @@ class ReportsBase(OSBase):
 
 class CsvOperations:
     def __init__(self, file_path):
-        self.file_path = file_path
+        if file_path:
+            self.file_path = file_path
+            self.df = pd.read_csv(self.file_path)
 
     def retrieve_csv_info(self):
-        df = pd.read_csv(self.file_path)
-        properties = df.filter(like="Property Name").values.flatten().tolist()
-        units = df.filter(like="Space Number").values.flatten().tolist()
+        properties = self.df.filter(like="Property Name").values.flatten().tolist()
+        units = self.df.filter(like="Space Number").values.flatten().tolist()
         residents = (
-            df.filter(like="Resident Name")
+            self.df.filter(like="Resident Name")
             .applymap(lambda x: x.split(",")[0] if isinstance(x, str) else x)
             .values.flatten()
             .tolist()
@@ -79,8 +94,8 @@ class CsvOperations:
         return properties, units, residents
 
     def get_url_columns(self):
-        df = pd.read_csv(self.file_path)
-        return df.filter(like="URL").values.flatten().tolist()
+        urls = self.df.filter(like="URL").values.flatten().tolist()
+        return urls
 
 
 class PdfOperations:

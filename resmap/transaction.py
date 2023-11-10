@@ -22,7 +22,7 @@ class TransactionScrape:
         date = cells[1].text.strip()
         bill_amount = self.browser.get_number_from_inner_html(cells[2].text.strip())
         amount_input = cells[3].find_element(By.TAG_NAME, "input")
-        current_allocation = amount_input.get_attribute("value")
+        current_allocation = float(amount_input.get_attribute("value"))
         return {
             "name": name,
             "date": date,
@@ -35,6 +35,7 @@ class TransactionScrape:
         try:
             self.browser.click(By.NAME, "realloc_trid")
             self.browser.click(By.NAME, "update")
+            self.browser.accept_alert()
         except NoSuchElementException:
             self.browser.driver.back()
 
@@ -46,7 +47,7 @@ class TransactionScrape:
             )
             value = self.browser.get_number_from_inner_html(element.text)
             if value is not None:
-                return value
+                return float(value)
             else:
                 element_input = element.find_element(By.TAG_NAME, "input")
                 return float(element_input.get_attribute("value"))
@@ -91,11 +92,12 @@ class TransactionOps(TransactionLoop):
         if table is None:
             return None
         rows = table.find_elements(By.XPATH, ".//tr")
-        return {
+        transaction_info = {
             "rows": self.loop_through_table(rows),
             "rows_length": len(rows) - 2,
             "total_amount": self.scrape_total_amount(self.ledger_row["type"]),
         }
+        return transaction_info
 
     def perform_transaction_op(self):
         if self.command["operation"] == "allocate":
@@ -104,16 +106,23 @@ class TransactionOps(TransactionLoop):
                 return "break"
 
             if self.ledger_row["type"] == "charge":
-                if self.allocation["amount"] == self.transaction_info["total_amount"]:
+                combined_amounts = sum(
+                    row["amount"] for row in self.transaction_info["rows"]
+                )
+                if (
+                    self.allocation["amount"] == self.transaction_info["total_amount"]
+                    or combined_amounts >= self.transaction_info["total_amount"]
+                ):
                     return "break"
+                self.potential_allocation = round(
+                    (self.potential_allocation - self.allocation["amount"]),
+                    2,
+                )
                 if self.allocation["amount"] != 0:
                     return
-                potential_allocation = (
-                    self.transaction_info["total_amount"] - self.allocation["amount"]
-                )
                 amount_to_allocate = (
-                    potential_allocation
-                    if potential_allocation <= self.ledger_row["prepaid_amount"]
+                    self.potential_allocation
+                    if self.potential_allocation <= self.ledger_row["prepaid_amount"]
                     else self.ledger_row["prepaid_amount"]
                 )
                 self.browser.send_keys_to_element(
@@ -134,8 +143,7 @@ class TransactionOps(TransactionLoop):
         if self.thread_helper and not self.thread_helper._is_cancelled:
             try:
                 self.browser.click(By.NAME, "delete")
-                alert = self.browser.driver.switch_to.alert
-                alert.accept()
+                self.browser.accept_alert()
             except:
                 return
 

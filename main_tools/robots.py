@@ -1,6 +1,7 @@
 from general_tools.general_info import GeneralInfo
 from main_tools.operations import Operations
 from selenium.webdriver.common.by import By
+from main_tools.operations import RedStarMaster
 
 
 class TicketBot(Operations):
@@ -20,24 +21,25 @@ class TicketBot(Operations):
             ):
                 break
             self.ticket = self.tickets_info[self.idx]
-            if (
-                self.command["operation"] == "unresolve_all"
-                and self.ticket["status"] == "unresolved"
-            ):
-                self.idx += 1
+            if self.check_continue():
                 continue
             self.browser.click_element(self.ticket["link"])
             self.ticket_info = self.ticket_master.scrape_ticket()
             if self.command["operation"] == "unresolve_all":
-                temp_command = self.operations_list.ticket_ops_dict["resolve_ticket"][
-                    "Unresolve"
-                ]
-                self.init_operation(temp_command)
+                self.run_command("Unresolve")
                 self.command = command
             if self.command["operation"] != "unresolve_all":
                 self.supportdesk_master.go_to_supportdesk()
             self.tickets_info = self.supportdesk_master.support_desk_loop()
             self.idx += 1
+
+    def check_continue(self):
+        if (
+            self.command["operation"] == "unresolve_all"
+            and self.ticket["status"] == "unresolved"
+        ):
+            self.idx += 1
+            return True
 
     def unresolve_all(self):
         pass
@@ -49,6 +51,7 @@ class RedstarBot(Operations):
         self.operations_list = operations_list
         self.nsf_bot = nsf_bot
         self.general_info = GeneralInfo()
+        self.redstar_master = RedStarMaster(browser)
 
     def loop_through_redstars(self):
         urls = self.redstar_master.csv_ops.get_url_columns()
@@ -61,17 +64,11 @@ class RedstarBot(Operations):
             self.allocate_unallocate()
 
     def allocate_unallocate(self):
-        tables = ["current"]
-        if self.general_info.day <= 15:
-            tables.append("previous")
-        for table in tables:
-            self.run_command("Allocate Payments", table)
-            if not self.has_redstar():
-                return
-            self.run_command("Unallocate All", table)
-            self.run_command("Allocate All", table)
-            if not self.has_redstar():
-                return
+        self.run_command("Allocate All", "current")
+        if not self.has_redstar():
+            return
+        self.run_command("Unallocate All", "current")
+        self.run_command("Allocate All", "current")
 
     def has_redstar(self):
         return self.browser.element_exists(
@@ -91,5 +88,3 @@ class NSFBot(Operations):
 
     def create_bounce_check_command(self):
         command = {"operations": "bounce"}
-
-

@@ -46,7 +46,6 @@ class TicketScrape:
             unit_number = unit_text.get_attribute("innerHTML").strip()
             href_value = unit_element.get_attribute("href")
             space_id = href_value.split("/spaces/")[-1].split("/")[0]
-            print(space_id)
         else:
             unit_number = self.interpretation.extract_unit_number(title + description)
             space_id = None

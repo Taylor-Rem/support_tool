@@ -93,13 +93,21 @@ class LoopFunctions(LedgerScrape):
         elif is_credit:
             type_update["type"] = "credit"
 
-        special_types = ["late_fee", "metered", "bounced_check", "system_nsf", "nsf"]
+        special_types = [
+            "late_fee",
+            "metered",
+            "bounced_check",
+            "system_nsf",
+            "nsf",
+            "security_deposit",
+        ]
         checks = [
             "late" in label,
             self.check_is_metered(row),
             is_payment and "(nsf" in label,
             is_charge and "(nsf" in label,
             "nsf" in label,
+            "system" in label,
         ]
 
         for s_type, check in zip(special_types, checks):
@@ -143,6 +151,8 @@ class LedgerOps(LedgerLoop):
             self.rows_length = len(self.ledger_info)
             return True
         except:
+            self.ledger_info = None
+            self.rows_length = None
             return False
 
     def click_ledger_table(self):

@@ -14,7 +14,7 @@ class ResmapNavScrape:
             self.info = {}
             self.info["resident"] = None
         self.property_link = "https://kingsley.residentmap.com/forward.php?propid="
-        self.rest_of_link = "&script=residentadmin.php&cmd=statusbar&rsid="
+        self.rest_of_link = "&script=space.php&cmd=viewspace&spaceid="
 
     def retrieve_ledger_element(self):
         return self.browser.find_element(By.XPATH, "(//a[text()='Ledger'])[last()]")
@@ -43,12 +43,12 @@ class ResmapNav(ResmapNavScrape):
         super().__init__(browser, info)
 
     def open_property(self):
-        property_url = f"{self.property_link}{self.general_info.prop_ids[self.info['property']]}{self.rest_of_link}"
+        property_url = f"{self.property_link}{self.general_info.prop_ids[self.info['property']]}{self.rest_of_link}{self.info['space_id']}"
         self.browser.launch_operation(property_url)
 
     def nav_to_unit(self):
         self.open_property()
-        if self.info["unit"] is None:
+        if self.info["unit"] is None or self.info["space_id"] is not None:
             return
         self.browser.send_keys(By.NAME, "search_input", self.info["unit"] + Keys.ENTER)
         try:

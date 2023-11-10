@@ -6,27 +6,49 @@ from resmap.navigation import ResmapNav
 from manage_portal.support_desk import SupportDeskOperations
 from manage_portal.tickets import TicketOperations
 
+import re
+
 
 class OperationsBase:
     def __init__(self, browser, thread_helper=None):
         self.browser = browser
         self.thread_helper = thread_helper
         self.cancelled = False
-        self.redstar_master = RedStarMaster(self.browser, "redstar_report")
+        self.redstar_master = None
 
     def init_operation(self, command):
         self.command = command
         self.init_classes()
         self.perform_operation()
 
-    def run_command(self, selection, table):
-        operations = ["allocate", "unallocate", "delete", "credit"]
+    def run_command(self, selection, table=None):
+        ledger_operations = ["allocate", "unallocate", "delete", "credit"]
+        ticket_operations = (
+            ("open_ticket", ("Ledger", "Unit", "Resident")),
+            ("resolve_ticket", ("Resolve", "In Progress", "Unresolve")),
+        )
+
         operation = None
-        for specific_operation in operations:
-            if specific_operation in selection.lower():
+
+        for specific_operation in ledger_operations:
+            # Using regex word boundary (\b) to ensure we match whole words
+            if re.search(
+                r"\b" + re.escape(specific_operation) + r"\b", selection.lower()
+            ):
                 operation = specific_operation
-        command = self.operations_list.ledger_ops_dict[operation][selection]
-        command["table"] = table
+                break
+
+        if operation is None:
+            for specific_operation, selections in ticket_operations:
+                if selection in selections:
+                    operation = specific_operation
+                    break
+
+        if operation in ledger_operations:
+            command = self.operations_list.ledger_ops_dict[operation][selection]
+            command["table"] = table
+        else:
+            command = self.operations_list.ticket_ops_dict[operation][selection]
         self.init_operation(command)
 
     def init_classes(self):
@@ -59,9 +81,6 @@ class Operations(OperationsBase):
             self.ticket_master.perform_operation()
         elif "ledger" in self.command["tools"]:
             self.ledger_master.define_operation()
-
-    def open_redstars(self, next_ledger):
-        self.redstar_master.cycle_ledger(next_ledger)
 
 
 class LedgerMaster(LedgerOps):
@@ -96,7 +115,7 @@ class LedgerMaster(LedgerOps):
             self.ledger_row = self.ledger_info[self.idx]
             if self.continue_loop():
                 continue
-            self.last_row = self.ledger_row["label"]
+            self.last_row = self.ledger_row
             if self.perform_operation():
                 self.return_to_ledger()
                 if not self.refresh_ledger_info():
@@ -122,13 +141,14 @@ class LedgerMaster(LedgerOps):
         if (
             self.ledger_row.get("link") is None
             and self.command["operation"] != "credit"
-        ) or (self.last_row == self.ledger_row["label"]):
+        ) or (self.last_row == self.ledger_row):
             self.idx += 1
             return True
 
     def break_early(self):
         if (
             (self.thread_helper and self.thread_helper._is_cancelled)
+            or self.rows_length is None
             or (self.idx >= self.rows_length)
             or (
                 self.command["operation"] == "allocate"
@@ -136,6 +156,7 @@ class LedgerMaster(LedgerOps):
                 and self.ledger_info[0]["prepaid_amount"] <= 0
             )
             or self.rows_length == 0
+            # or self.check_nsf()
         ):
             return True
 
@@ -149,11 +170,11 @@ class TransactionMaster(TransactionOps):
         self.idx = 0
         if not self.refresh_transaction_info():
             return
+        self.potential_allocation = self.transaction_info["total_amount"]
         while True:
-            if self.idx >= self.transaction_info["rows_length"] or (
-                self.thread_helper and self.thread_helper._is_cancelled
-            ):
+            if self.check_break():
                 break
+
             self.finished_list = self.idx >= self.transaction_info["rows_length"] - 1
             self.allocation = self.transaction_info["rows"][self.idx]
             operation_result = self.perform_transaction_op()
@@ -165,6 +186,12 @@ class TransactionMaster(TransactionOps):
                 self.transaction_info = self.retrieve_elements()
                 continue
             self.idx += 1
+
+    def check_break(self):
+        if self.idx >= self.transaction_info["rows_length"] or (
+            self.thread_helper and self.thread_helper._is_cancelled
+        ):
+            return True
 
     def refresh_transaction_info(self):
         self.transaction_info = self.retrieve_elements()
@@ -185,13 +212,25 @@ class CreditMaster(CreditOps):
 
 
 class RedStarMaster(ReportsBase):
-    def __init__(self, browser, report):
-        super().__init__(report)
+    def __init__(self, browser):
+        super().__init__("redstar_report")
         self.browser = browser
         self.redstar_idx = 0
 
     def cycle_ledger(self, next_ledger):
-        self.redstar_idx = self.redstar_idx + 1 if next_ledger else self.redstar_idx - 1
+        urls_length = len(self.csv_ops.get_url_columns())
+
+        if next_ledger:
+            if self.redstar_idx == urls_length - 1:  # if at the last index
+                self.redstar_idx = 0  # reset to the beginning
+            else:
+                self.redstar_idx += 1
+        else:
+            if self.redstar_idx == 0:  # if at the beginning
+                self.redstar_idx = urls_length - 1  # set to the last index
+            else:
+                self.redstar_idx -= 1
+
         self.open_redstar_ledger()
 
     def open_redstar_ledger(self):
