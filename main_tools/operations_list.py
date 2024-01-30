@@ -45,6 +45,7 @@ class OperationsList:
                     "operation": "automation",
                     "tools": "ticket",
                 },
+                "Random Operation": {"operation": "random", "tools": "ticket"},
             },
         }
         self.ledger_ops_dict = {

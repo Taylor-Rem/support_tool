@@ -22,10 +22,13 @@ class ResmapNavScrape:
     def retrieve_resident_element(self):
         if self.info["resident"] == None:
             return True
-        resident_element = self.browser.find_element(
-            By.XPATH, f".//a[contains(text(), '{self.info['resident']}')]"
-        )
-        return resident_element
+        try:
+            resident_element = self.browser.find_element(
+                By.XPATH, f".//a[contains(text(), '{self.info['resident']}')]"
+            )
+            return resident_element
+        except:
+            return None
 
     def retrieve_unit_element(self):
         return self.browser.find_element(

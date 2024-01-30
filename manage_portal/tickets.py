@@ -92,9 +92,9 @@ class TicketOperations(TicketScrape):
         )
         self.browser.click_element(resolution_btn)
 
-        back = (
-            self.command["selection"] == "in_progress"
-            or self.command["selection"] == "unresolve"
+        back = self.command["selection"] == "in_progress" or (
+            self.command["selection"] == "unresolve"
+            and self.command["type"] == "manual"
         )
 
         if back:

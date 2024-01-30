@@ -22,14 +22,11 @@ class SupportDeskLoop(SupportDeskFunctions):
     def support_desk_loop(self):
         support_desk_info = []
         rows = self.browser.get_rows(By.TAG_NAME, "tbody")
-        rows_length = int(len(rows))
         for row in rows:
             cells = row.find_elements(By.TAG_NAME, "td")
-            link = cells[3].find_element(By.TAG_NAME, "a")
+            ticket_id = cells[1].text.strip()
             status = self.return_status(cells)
-            support_desk_info.append(
-                {"length": rows_length, "link": link, "status": status}
-            )
+            support_desk_info.append({"id": ticket_id, "status": status})
         return support_desk_info
 
 

@@ -156,7 +156,6 @@ class LedgerMaster(LedgerOps):
                 and self.ledger_info[0]["prepaid_amount"] <= 0
             )
             or self.rows_length == 0
-            # or self.check_nsf()
         ):
             return True
 

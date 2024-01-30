@@ -51,7 +51,6 @@ class ReportsBase(OSBase):
 
             # Ensure there's at least one CSV file in the directory
             if not csv_files:
-                print("No CSV files found in the directory.")
                 return None
 
             # Sort the files by their creation time, and get the latest one

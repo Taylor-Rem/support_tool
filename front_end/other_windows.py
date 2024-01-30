@@ -14,7 +14,7 @@ class LedgerTools(HelperWidget):
         super().__init__(main_app, title)
         self.additional_info_window = AdditionalInfoWindow(main_app)
         self.general_info = GeneralInfo()
-        self.previous_closed = self.general_info.day >= 30
+        self.previous_closed = self.general_info.day >= 20
 
     def create_ledger_tools(self):
         self.change_resident_dropdown = self.configured_operations_dropdown(
@@ -91,6 +91,8 @@ class TicketHelper(HelperWidget):
         self.add_back_btn()
 
     def submit(self, command):
+        if command["operation"] == "resolve_ticket":
+            command["type"] = "manual"
         self.operations.init_operation(command)
         if command["operation"] == "open_ticket":
             self.main_app.switch_window(self.main_app.ledger_window)
