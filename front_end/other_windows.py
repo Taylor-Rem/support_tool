@@ -14,7 +14,7 @@ class LedgerTools(HelperWidget):
         super().__init__(main_app, title)
         self.additional_info_window = AdditionalInfoWindow(main_app)
         self.general_info = GeneralInfo()
-        self.previous_closed = self.general_info.day >= 20
+        self.previous_closed = self.general_info.day >= 28
 
     def create_ledger_tools(self):
         self.change_resident_dropdown = self.configured_operations_dropdown(
@@ -147,3 +147,4 @@ class RandomWindow(HelperWidget):
 
     def run_bot(self):
         self.run_in_thread(self.random_ops.random_operation)
+

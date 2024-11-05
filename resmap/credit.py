@@ -46,6 +46,10 @@ class CreditOps(CreditScrape):
         )
         credit_input.send_keys(self.credit_row["amount_value"])
         comments = self.browser.find_element(By.XPATH, "//textarea[@name='comments']")
+        try: 
+            self.command["comment"]
+        except:
+            self.command["comment"] = ' '
         comments.send_keys(self.command["comment"])
         self.browser.find_element(
             By.XPATH, "//input[@type='submit' and @name='submit1']"

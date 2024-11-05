@@ -14,7 +14,8 @@ class ResmapNavScrape:
             self.info = {}
             self.info["resident"] = None
         self.property_link = "https://kingsley.residentmap.com/forward.php?propid="
-        self.rest_of_link = "&script=space.php&cmd=viewspace&spaceid="
+        self.space_link = "&script=space.php&cmd=viewspace&spaceid="
+        self.ledger_link = "&script=residentadmin.php&cmd=statusbar&rsid="
 
     def retrieve_ledger_element(self):
         return self.browser.find_element(By.XPATH, "(//a[text()='Ledger'])[last()]")
@@ -45,20 +46,39 @@ class ResmapNav(ResmapNavScrape):
     def __init__(self, browser, info):
         super().__init__(browser, info)
 
-    def open_property(self):
-        property_url = f"{self.property_link}{self.general_info.prop_ids[self.info['property']]}{self.rest_of_link}{self.info['space_id']}"
-        self.browser.launch_operation(property_url)
+    def nav_to_selection(self):
+        if self.command["selection"] == "unit":
+            if self.info["space_id"] is not None:
+                self.browser.launch_operation(f"{self.property_link}{self.general_info.prop_ids[self.info['property']]}{self.space_link}{self.info['space_id']}")
+                return
+        if self.command["selection"] == "ledger":
+            if self.info["rsid"] is not None:
+                ledger_url = f"{self.property_link}{self.general_info.prop_ids[self.info['property']]}{self.ledger_link}{self.info['rsid']}"
+                print(ledger_url)
+                self.browser.launch_operation(ledger_url)
+                return
+            else:
+                self.nav_to_unit()
+                self.open_ledger()
+        if self.command["selection"] == "resident":
+            self.nav_to_unit()
+            self.open_resident()
+            return
 
     def nav_to_unit(self):
-        self.open_property()
-        if self.info["unit"] is None or self.info["space_id"] is not None:
-            return
-        self.browser.send_keys(By.NAME, "search_input", self.info["unit"] + Keys.ENTER)
-        try:
-            self.browser.click_element(self.retrieve_unit_element())
-        except NoSuchElementException:
-            self.search_former_unit()
-            self.browser.click_element(self.retrieve_unit_element())
+        if self.info["space_id"] is not None:
+            self.browser.launch_operation(f"{self.property_link}{self.general_info.prop_ids[self.info['property']]}{self.space_link}{self.info['space_id']}")
+        else:
+            try:
+                self.browser.launch_operation(f"{self.property_link}{self.general_info.prop_ids[self.info['property']]}&script=space.php")
+                self.browser.send_keys(By.NAME, "search_input", self.info["unit"] + Keys.ENTER)
+            except:
+                return
+            try:
+                self.browser.click_element(self.retrieve_unit_element())
+            except NoSuchElementException:
+                self.search_former_unit()
+                self.browser.click_element(self.retrieve_unit_element())
 
     def open_ledger(self):
         if self.retrieve_resident_element():

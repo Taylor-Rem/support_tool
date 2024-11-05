@@ -49,6 +49,7 @@ class OperationsBase:
             command["table"] = table
         else:
             command = self.operations_list.ticket_ops_dict[operation][selection]
+        command["comment"] = "ledger doesn't match bill"
         self.init_operation(command)
 
     def init_classes(self):
@@ -156,6 +157,7 @@ class LedgerMaster(LedgerOps):
                 and self.ledger_info[0]["prepaid_amount"] <= 0
             )
             or self.rows_length == 0
+            # or self.check_nsf()
         ):
             return True
 
@@ -266,11 +268,7 @@ class ResmapNavMaster(ResmapNav):
         self.command = command
 
     def resmap_nav(self):
-        self.nav_to_unit()
-        if self.command["selection"] == "ledger":
-            self.open_ledger()
-        if self.command["selection"] == "resident":
-            self.open_resident()
+        self.nav_to_selection()
 
     def change_resident(self, unit_element):
         self.browser.click_element(unit_element)

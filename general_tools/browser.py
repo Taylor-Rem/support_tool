@@ -24,7 +24,7 @@ class BrowserBase:
             BrowserBase._instance = self.setup_webdriver()
 
         self.driver = BrowserBase._instance
-        self.wait = WebDriverWait(self.driver, 10)
+        self.wait = WebDriverWait(self.driver, 5)
         self.primary_tab = None
 
     def setup_webdriver(self):
@@ -206,5 +206,7 @@ class Browser(WebElementOperations, WebUtilityOperations, WebdriverResmapOperati
         self.supportdesk_url = "https://residentmap.kmcmh.com/#/support_desk"
 
     def get_rows(self, by, value):
-        table = self.wait_for_presence_of_element(by, value)
+        table = self.find_element(by, value)
+        if table is None:
+            return None
         return table.find_elements(By.XPATH, ".//tr")

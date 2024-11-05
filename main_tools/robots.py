@@ -61,15 +61,46 @@ class RedstarBot(Operations):
                 continue
 
     def allocate_unallocate(self):
+# PREVIOUS MONTH CLOSED
         if not self.has_redstar():
             return
         self.run_command("Allocate Payments", "current")
         if not self.has_redstar():
             return
+        self.run_command("Allocate Charges", "current")
+        if not self.has_redstar():
+            return
         self.run_command("Unallocate Payments", "current")
         self.run_command("Unallocate Charges", "current")
-        self.run_command("Allocate All", "current")
+        self.run_command("Allocate Payments", "current")
+        self.run_command("Allocate Charges", "current")
+        if not self.has_redstar():
+            return
 
+# PREVIOUS MONTH NOT CLOSED
+        # self.run_command("Allocate Payments", "previous")
+        # if not self.has_redstar():
+        #     return
+        # self.run_command("Allocate Payments", "current")
+        # if not self.has_redstar():
+        #     return
+        # self.run_command("Unallocate Payments", "previous")
+        # self.run_command("Unallocate Charges", "previous")
+        # self.run_command("Allocate Payments", "previous")
+        # self.run_command("Allocate Charges", "previous")
+        # if not self.has_redstar():
+        #     return
+        # self.run_command("Allocate Payments", "current")
+        # if not self.has_redstar():
+        #     return
+        # self.run_command("Unallocate Payments", "current")
+        # self.run_command("Unallocate Charges", "current")
+        # self.run_command("Allocate Payments", "current")
+        # self.run_command("Allocate Charges", "current")
+        # if not self.has_redstar():
+        #     return
+
+    # DON'T COMMENT OUT
     def has_redstar(self):
         return self.browser.element_exists(
             By.XPATH, '//td//font[@color="red" and text()="*"]'
