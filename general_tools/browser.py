@@ -13,7 +13,7 @@ from selenium.common.exceptions import (
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.common.action_chains import ActionChains
 import re
-from config import username, password
+from config import username, password, resmap_base_url, support_desk_url
 
 
 class BrowserBase:
@@ -202,8 +202,8 @@ class WebdriverResmapOperations(BrowserBase):
 class Browser(WebElementOperations, WebUtilityOperations, WebdriverResmapOperations):
     def __init__(self):
         super(Browser, self).__init__()
-        self.resmap_url = "https://kingsley.residentmap.com/index.php"
-        self.supportdesk_url = "https://residentmap.kmcmh.com/#/support_desk"
+        self.resmap_url = f"{resmap_base_url}/index.php"
+        self.supportdesk_url = support_desk_url
 
     def get_rows(self, by, value):
         table = self.find_element(by, value)

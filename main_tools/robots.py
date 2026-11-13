@@ -1,3 +1,4 @@
+from config import support_desk_url
 from general_tools.general_info import GeneralInfo
 from main_tools.operations import Operations
 from selenium.webdriver.common.by import By
@@ -11,7 +12,7 @@ class TicketBot(Operations):
         super().__init__(browser, thread_helper)
         self.operations_list = operations_list
         self.ticket_ops = TicketOperations(browser, command=None)
-        self.support_desk_link = "https://residentmap.kmcmh.com/#/support_desk"
+        self.support_desk_link = support_desk_url
 
     def loop_through_tickets(self, command):
         self.command = command

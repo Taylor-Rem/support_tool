@@ -1,3 +1,4 @@
+from config import resmap_base_url
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import NoSuchElementException
@@ -13,7 +14,7 @@ class ResmapNavScrape:
         else:
             self.info = {}
             self.info["resident"] = None
-        self.property_link = "https://kingsley.residentmap.com/forward.php?propid="
+        self.property_link = f"{resmap_base_url}/forward.php?propid="
         self.space_link = "&script=space.php&cmd=viewspace&spaceid="
         self.ledger_link = "&script=residentadmin.php&cmd=statusbar&rsid="
 
